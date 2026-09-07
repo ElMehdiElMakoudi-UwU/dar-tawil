@@ -1,26 +1,268 @@
 @import "tailwindcss";
 
+@theme {
+  /* Nuit de lanterne — gold read on dark lacquer, as the mark was meant to be seen. */
+  --color-noir: #14100c;
+  --color-brou: #241b12;
+  --color-brou-clair: #32251a;
+  --color-or: #be9455;
+  --color-or-clair: #e6d2a8;
+  --color-or-profond: #8e6a32;
+  --color-ivoire: #f4eee2;
+
+  /* The one panel that inverts against the rest of the page. Semantic rather
+     than named after a colour, so a palette swap is a token swap. */
+  --color-accent: #16453a;
+  --color-accent-hover: #1d5d4d;
+  --color-on-accent: #f4eee2;
+  --color-on-accent-title: #f4eee2;
+  --color-on-accent-em: #e6d2a8;
+  --color-on-accent-dim: #9db0a6;
+  --color-on-accent-eyebrow: #c9a672;
+
+  --font-display: var(--font-marcellus), "Iowan Old Style", Georgia, serif;
+  --font-body: var(--font-jost), ui-sans-serif, system-ui, sans-serif;
+
+  --tracking-monument: 0.26em;
+  --tracking-eyebrow: 0.34em;
+
+  --ease-lantern: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Image-placeholder plate, tinted to whichever palette is active. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --plate-top: #3a2a1b;
+  --plate-mid: #241b12;
+  --plate-bot: #14100c;
+  /* the ground colour, as channels, for the hero's veil */
+  --veil: 20 16 12;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ── "Jour" — the palette of the client's own packaging ─────────────
+   Sage coffret on a saturated emerald ground, cream band, gold type.
+   Selected in lib/theme.ts; everything else in the site reads tokens. */
+:root[data-palette="jour"] {
+  --color-noir: #0c4030;
+  --color-brou: #135040;
+  --color-brou-clair: #1a624e;
+  --color-or: #cba960;
+  --color-or-clair: #ecdcb4;
+  --color-or-profond: #9b7a34;
+  --color-ivoire: #f2ece0;
+
+  /* the accent panel becomes the pale sage of the box itself */
+  --color-accent: #bccbb1;
+  --color-accent-hover: #c9d7bf;
+  --color-on-accent: #123c2c;
+  --color-on-accent-title: #0a2c20;
+  --color-on-accent-em: #16513a;
+  --color-on-accent-dim: #385744;
+  --color-on-accent-eyebrow: #2f4f3c;
+
+  --plate-top: #216f56;
+  --plate-mid: #135040;
+  --plate-bot: #0c4030;
+  --veil: 12 64 48;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Arabic swaps the faces underneath the same utilities. */
+html[lang="ar"] {
+  --font-display: var(--font-amiri), "Geeza Pro", serif;
+  --font-body: var(--font-plex-arabic), ui-sans-serif, system-ui, sans-serif;
+  --tracking-monument: 0em;
+  --tracking-eyebrow: 0.12em;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-noir);
+    color: var(--color-ivoire);
+    font-family: var(--font-body);
+    font-synthesis-weight: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-or);
+    color: var(--color-noir);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-or-clair);
+    outline-offset: 3px;
+    border-radius: 1px;
+  }
+
+  /* Arabic runs a touch larger; the naskh x-height sits low against Jost. */
+  html[lang="ar"] body {
+    font-size: 1.05em;
+    line-height: 1.85;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* The monogram, filled with the site's own gold rather than the flat PDF gold. */
+  .mark {
+    background: linear-gradient(
+      160deg,
+      var(--color-or-clair) 0%,
+      var(--color-or) 42%,
+      var(--color-or-profond) 74%,
+      var(--color-or-clair) 100%
+    );
+    -webkit-mask: var(--mark-src) center / contain no-repeat;
+    mask: var(--mark-src) center / contain no-repeat;
+  }
+
+  .eyebrow {
+    font-family: var(--font-body);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--color-or);
+  }
+
+  html[lang="ar"] .eyebrow {
+    font-size: 0.8125rem;
+    text-transform: none;
+  }
+
+  /* Section headings: inscriptional, wide, quiet. */
+  .monument {
+    font-family: var(--font-display);
+    font-weight: 400;
+    line-height: 1.06;
+    letter-spacing: 0.005em;
+    text-wrap: balance;
+  }
+
+  html[lang="ar"] .monument {
+    line-height: 1.4;
+  }
+
+  /* Sets the local colour context for the inverted panel, so its children
+     don't need to know which palette is running. */
+  .panel-accent {
+    background-color: var(--color-accent);
+    color: var(--color-on-accent);
+  }
+
+
+  .rule {
+    border: 0;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      color-mix(in srgb, var(--color-or) 55%, transparent) 18%,
+      color-mix(in srgb, var(--color-or) 55%, transparent) 82%,
+      transparent
+    );
+  }
+}
+
+/* The panel's own colour rules live in the utilities layer so they outrank the
+   text-* utilities on the elements inside it. */
+@layer utilities {
+  .panel-accent .eyebrow {
+    color: var(--color-on-accent-eyebrow);
+  }
+
+  .panel-accent .monument {
+    color: var(--color-on-accent-title);
+  }
+
+  /* after .monument on purpose — equal specificity, so this wins where both apply */
+  .panel-accent .on-accent-em {
+    color: var(--color-on-accent-em);
+  }
+
+  .panel-accent .on-accent-dim {
+    color: var(--color-on-accent-dim);
+  }
+
+  /* On the pale sage panel a gold button has almost no edge against its
+     ground, so it inverts. The dark palette keeps gold, where it does pop. */
+  :root[data-palette="jour"] .panel-accent .cta-primary {
+    background-color: var(--color-on-accent);
+    color: var(--color-accent);
+  }
+
+  :root[data-palette="jour"] .panel-accent .cta-primary:hover {
+    background-color: var(--color-on-accent-title);
+  }
+}
+
+/* ── The lantern sweep ───────────────────────────────────────────────
+   A slow warm pass across the lattice, as light moves through a carved
+   screen. One effect, one place: the hero. */
+@keyframes lantern {
+  0%,
+  100% {
+    transform: translate3d(-22%, 0, 0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate3d(22%, 0, 0);
+    opacity: 0.95;
+  }
+}
+
+.lantern-sweep {
+  animation: lantern 21s var(--ease-lantern) infinite;
+  will-change: transform, opacity;
+}
+
+/* Page-load and scroll reveals */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1.15rem, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 1s var(--ease-lantern) both;
+}
+
+/* Hidden only once JS has confirmed it can bring things back. Without it the
+   page renders complete, which is what crawlers and no-JS visitors get. */
+html.reveal-ready [data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 1.75rem, 0);
+  transition:
+    opacity 1s var(--ease-lantern),
+    transform 1s var(--ease-lantern);
+}
+
+html.reveal-ready [data-reveal][data-shown] {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .lantern-sweep,
+  .rise {
+    animation: none;
+  }
+
+  html.reveal-ready [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }
