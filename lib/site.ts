@@ -2,10 +2,12 @@
  * Single place for the client's real details. Everything marked PLACEHOLDER
  * still needs Dar Tawil's actual value before launch.
  */
+import { siteUrl } from "./env";
+
 export const site = {
   name: "Dar Tawil",
-  /** PLACEHOLDER — set to the live domain. */
-  url: "https://dartawil.ma",
+  /** Set with NEXT_PUBLIC_SITE_URL at build time — see lib/env.ts. */
+  url: siteUrl,
   /** 0614149785 in international format, no spaces, for wa.me links. */
   whatsapp: "212614149785",
   phoneDisplay: "+212 6 14 14 97 85",

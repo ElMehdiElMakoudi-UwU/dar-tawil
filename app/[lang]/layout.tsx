@@ -6,6 +6,7 @@ import { ArchClipDefs } from "@/components/ornament";
 import { RevealOnScroll } from "@/components/reveal";
 import { locales, localeDir, type Locale } from "@/lib/locales";
 import { site } from "@/lib/site";
+import { indexable } from "@/lib/env";
 import { palette } from "@/lib/theme";
 import { getDictionary } from "./dictionaries";
 import "../globals.css";
@@ -60,6 +61,7 @@ export async function generateMetadata({
       languages: Object.fromEntries(locales.map((l) => [l, `/${l}`])),
     },
     icons: { icon: "/brand/icon.png", apple: "/brand/icon.png" },
+    robots: indexable ? undefined : { index: false, follow: false },
     openGraph: {
       type: "website",
       siteName: site.name,

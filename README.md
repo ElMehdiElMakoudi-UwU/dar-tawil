@@ -55,6 +55,41 @@ hands it to WhatsApp or the visitor's mail client, both of which work with no
 server. To take submissions properly later, replace the two links in
 `components/contact-form.tsx` with a server action or a form endpoint.
 
+## Deploying to Coolify
+
+The repo ships a `Dockerfile` (multi-stage, Next.js standalone output, non-root
+user, ~50 MB of app on top of `node:22-alpine`).
+
+In Coolify:
+
+1. **+ New → Application → Public Repository** (or Private, via the GitHub App).
+   Repo `ElMehdiElMakoudi-UwU/dar-tawil`, branch `main`.
+2. **Build Pack: `Dockerfile`.** Base directory `/`, Dockerfile `/Dockerfile`.
+3. **Port: `3000`.**
+4. **Domain**: `https://dartawil.emsquare.ma`. Point that DNS A record at the
+   VPS *before* deploying, so Let's Encrypt can issue the certificate.
+5. **Environment variables** — add both and tick **Build Variable** on each:
+
+   | Name | Value |
+   | --- | --- |
+   | `NEXT_PUBLIC_SITE_URL` | `https://dartawil.emsquare.ma` |
+   | `SITE_INDEXABLE` | `false` for the client preview |
+
+6. **Health check**: path `/api/health`, port `3000`. Do not leave it on `/` —
+   that returns a 307 to the visitor's language and can read as unhealthy.
+
+### Things that will bite otherwise
+
+- Both variables are consumed by `next build`, because every page is statically
+  generated. A runtime-only variable never reaches them. Changing either one
+  needs a **rebuild**, not a restart.
+- `NEXT_PUBLIC_SITE_URL` must match the served domain exactly. If it doesn't,
+  canonical URLs, `hreflang` and the Open Graph image all point at the wrong
+  host — which is what WhatsApp and Messenger read when the link is shared.
+- **`SITE_INDEXABLE=false` keeps the preview out of Google**: `robots.txt`
+  disallows everything and every page carries `<meta name="robots"
+  content="noindex, nofollow">`. Set it to `true` only at real launch.
+
 ## The two palettes
 
 `lib/theme.ts` holds a single constant that stamps `data-palette` on `<html>`.
