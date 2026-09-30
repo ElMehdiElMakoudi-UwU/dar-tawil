@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Amiri, IBM_Plex_Sans_Arabic, Jost, Marcellus } from "next/font/google";
+import { Amiri, Great_Vibes, IBM_Plex_Sans_Arabic, Jost, Marcellus } from "next/font/google";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
+import { Intro } from "@/components/intro";
 import { ArchClipDefs } from "@/components/ornament";
 import { RevealOnScroll } from "@/components/reveal";
 import { locales, localeDir, type Locale } from "@/lib/locales";
@@ -23,6 +24,14 @@ const marcellus = Marcellus({
 const jost = Jost({
   subsets: ["latin"],
   variable: "--font-jost",
+  display: "swap",
+});
+
+/* The script the name is printed in on the boxes — wordmark only. */
+const greatVibes = Great_Vibes({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-script",
   display: "swap",
 });
 
@@ -84,7 +93,6 @@ export default async function RootLayout({
   const nav = [
     { href: `/${locale}/maison`, label: t.nav.maison },
     { href: `/${locale}/collections`, label: t.nav.collections },
-    { href: `/${locale}/dfou3`, label: t.nav.dfou3 },
     { href: `/${locale}/contact`, label: t.nav.contact },
   ];
 
@@ -93,13 +101,16 @@ export default async function RootLayout({
       lang={locale}
       dir={localeDir[locale]}
       data-palette={palette}
-      className={`${marcellus.variable} ${jost.variable} ${amiri.variable} ${plexArabic.variable}`}
+      // the intro's inline script adds `intro` to the class list before hydration
+      suppressHydrationWarning
+      className={`${marcellus.variable} ${jost.variable} ${greatVibes.variable} ${amiri.variable} ${plexArabic.variable}`}
     >
       <body className="min-h-dvh antialiased">
         <ArchClipDefs />
+        <Intro />
         <a
           href="#contenu"
-          className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-[60] focus:bg-or focus:px-4 focus:py-2 focus:text-noir"
+          className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-[60] focus:bg-ivoire focus:px-4 focus:py-2 focus:text-noir"
         >
           {t.ui.skip}
         </a>

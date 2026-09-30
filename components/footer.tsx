@@ -2,23 +2,26 @@ import Link from "next/link";
 import type { Dictionary } from "@/content/fr";
 import type { Locale } from "@/lib/locales";
 import { site, whatsappLink } from "@/lib/site";
-import { Lattice } from "./ornament";
+import { palette } from "@/lib/theme";
+import { Ground } from "./ornament";
 import { Mark, Wordmark } from "./mark";
 
 export function Footer({ lang, t }: { lang: Locale; t: Dictionary }) {
   const nav = [
     { href: `/${lang}/maison`, label: t.nav.maison },
     { href: `/${lang}/collections`, label: t.nav.collections },
-    { href: `/${lang}/dfou3`, label: t.nav.dfou3 },
     { href: `/${lang}/contact`, label: t.nav.contact },
   ];
 
   return (
     <footer className="relative overflow-hidden border-t border-or/20 bg-noir">
-      <Lattice
-        id="lattice-footer"
-        className="pointer-events-none absolute inset-0 text-or/[0.05]"
+      <Ground
+        id="ground-footer"
+        className={`pointer-events-none absolute inset-0 ${
+          palette === "blanc" ? "text-or/35" : "text-or/[0.05]"
+        }`}
         scale={1.5}
+        fade="up"
       />
 
       <div className="relative mx-auto max-w-[82rem] px-5 py-16 md:px-10 md:py-20">

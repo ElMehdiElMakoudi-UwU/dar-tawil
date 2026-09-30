@@ -4,7 +4,9 @@ Trilingual showcase site (FR / EN / AR with RTL) for Dar Tawil, a house in Ksar
 El Kebir selling dates and Belgian couverture chocolate in gift coffrets and
 wedding dfou3.
 
-Next.js 16 (App Router) · Tailwind v4 · fully static — 15 prerendered pages.
+Next.js 16 (App Router) · Tailwind v4 · the public site is fully static — 15
+prerendered pages. The back office at `/gestion` is dynamic and needs Postgres
+(see [Back office](#back-office-gestion)).
 
 ```bash
 npm run dev      # http://localhost:3000  → redirects to the browser's language
@@ -55,6 +57,50 @@ hands it to WhatsApp or the visitor's mail client, both of which work with no
 server. To take submissions properly later, replace the two links in
 `components/contact-form.tsx` with a server action or a form endpoint.
 
+## Back office (`/gestion`)
+
+A sign-in-only section that replaces the old `dar_tawil.xlsx` tracker: sales,
+stock, customers, purchases, expenses, staff & payroll, cash & bank, and a
+yearly dashboard. English only, never indexed, outside the locale redirect.
+
+Two roles:
+
+| | Staff | Admin |
+| --- | --- | --- |
+| Log sales, mark orders paid | ✓ | ✓ |
+| See products, prices, stock; add customers | ✓ | ✓ |
+| Costs, margins, profit, stock value | — | ✓ |
+| Purchases, expenses, payroll, cash & bank, dashboard | — | ✓ |
+| Edit products, delete records, dropdown lists, user accounts | — | ✓ |
+
+Staff never receive cost data at all — it isn't hidden in the page, it's never
+queried for them. Every page and every server action checks the role itself
+(`requireUser` / `requireAdmin` in `lib/gestion/auth.ts`).
+
+**First run:** open `/gestion`. With no users in the database it shows a setup
+screen that creates the owner's admin account; staff are added afterwards under
+*Settings & users*. The setup screen disappears once any user exists.
+
+**Local development:**
+
+```bash
+createdb dar_tawil
+echo "DATABASE_URL=postgres://localhost:5432/dar_tawil" >> .env.local
+npm run migrate
+npm run dev      # then http://localhost:3000/gestion
+```
+
+| You want to change… | Edit |
+| --- | --- |
+| Tables / columns | add `db/migrations/00N_*.sql` (never edit an applied one) |
+| What each role can read | `lib/gestion/queries.ts` |
+| Saves, deletes, permissions on writes | `app/gestion/actions.ts` |
+| Pages | `app/gestion/(app)/…` — admin-only ones under `admin/` |
+
+A sale stores the product's cost at the moment it's sold, so changing a cost
+later doesn't rewrite past profit. Payroll payments count as a cost on the
+dashboard next to expenses, so salaries shouldn't also be logged as expenses.
+
 ## Deploying to Coolify
 
 The repo ships a `Dockerfile` (multi-stage, Next.js standalone output, non-root
@@ -77,6 +123,11 @@ In Coolify:
 
 6. **Health check**: path `/api/health`, port `3000`. Do not leave it on `/` —
    that returns a 307 to the visitor's language and can read as unhealthy.
+7. **Database for `/gestion`**: **+ New → Database → PostgreSQL** in the same
+   project, then add `DATABASE_URL` (its internal URL) to the app as a normal
+   **runtime** variable — *not* a build variable. Migrations run automatically
+   each time the container starts. Turn on Coolify's scheduled backups for that
+   database: it holds the business's books.
 
 ### Things that will bite otherwise
 

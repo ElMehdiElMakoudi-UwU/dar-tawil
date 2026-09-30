@@ -65,6 +65,34 @@
   --veil: 12 64 48;
 }
 
+/* ── "Blanc" — the house's Instagram ─────────────────────────────────
+   White lid, hairline gold cubes, name in script inside a thin gold frame.
+   The token names keep their roles, not their hues: "noir" is the ground,
+   "ivoire" the ink, "or-clair" the emphasised gold (here deepened so it
+   reads on white). Chocolate is the one dark, and it takes the accent panel. */
+:root[data-palette="blanc"] {
+  --color-noir: #fcfbf8;
+  --color-brou: #f5f1e9;
+  --color-brou-clair: #ece5d7;
+  --color-or: #9c7741;
+  --color-or-clair: #7d5c2b;
+  --color-or-profond: #6b4d22;
+  --color-ivoire: #2d2219;
+
+  --color-accent: #33251b;
+  --color-accent-hover: #3f2e22;
+  --color-on-accent: #f4ede1;
+  --color-on-accent-title: #faf5ec;
+  --color-on-accent-em: #e4c996;
+  --color-on-accent-dim: #c7b8a5;
+  --color-on-accent-eyebrow: #cfae74;
+
+  --plate-top: #fbf8f2;
+  --plate-mid: #f3ede2;
+  --plate-bot: #e9e0cf;
+  --veil: 252 251 248;
+}
+
 /* Arabic swaps the faces underneath the same utilities. */
 html[lang="ar"] {
   --font-display: var(--font-amiri), "Geeza Pro", serif;
@@ -197,6 +225,42 @@ html[lang="ar"] {
   :root[data-palette="jour"] .panel-accent .cta-primary:hover {
     background-color: var(--color-on-accent-title);
   }
+
+  /* White type on mid gold is too faint to read, so on white the filled
+     button takes the deep gold, and warms to chocolate on hover. */
+  :root[data-palette="blanc"] .cta-primary {
+    background-color: var(--color-or-profond);
+    color: #fff;
+  }
+
+  :root[data-palette="blanc"] .cta-primary:hover {
+    background-color: var(--color-ivoire);
+  }
+
+  /* …except on the chocolate panel, where bright gold is what stands out. */
+  :root[data-palette="blanc"] .panel-accent .cta-primary {
+    background-color: var(--color-on-accent-eyebrow);
+    color: var(--color-accent);
+  }
+
+  :root[data-palette="blanc"] .panel-accent .cta-primary:hover {
+    background-color: var(--color-on-accent-em);
+  }
+
+  /* The flat ink of the deep-gold tokens would make the monogram look brown;
+     on white it keeps the foil gradient of the printed logo. */
+  :root[data-palette="blanc"] .mark {
+    background: linear-gradient(160deg, #e2c68f 0%, #bb955a 40%, #93703a 72%, #d4b47a 100%);
+  }
+
+  /* The name as it is printed on the lid: script, not engraved caps. */
+  :root[data-palette="blanc"] .wordmark {
+    font-family: var(--font-script), cursive;
+    text-transform: none;
+    letter-spacing: 0 !important;
+    line-height: 1;
+    color: var(--color-or-clair);
+  }
 }
 
 /* ── The lantern sweep ───────────────────────────────────────────────
@@ -248,6 +312,189 @@ html.reveal-ready [data-reveal] {
 html.reveal-ready [data-reveal][data-shown] {
   opacity: 1;
   transform: none;
+}
+
+/* ── Page-load intro ─────────────────────────────────────────────────
+   The monogram is built from its parts — the arch rises from its footings,
+   the palm and its dates open out, the letters fade in — then a glint
+   crosses the foil and the name follows under a hairline. Then the mark
+   and the name fly up into the header's own logo (IntroController) while
+   the curtain's ground fades away beneath them. Only shown while <html>
+   carries `intro` (set before paint on every full page load). A late
+   fail-safe fade hides it anyway, so it never depends on JS to get out of
+   the way. */
+.intro-curtain {
+  display: none;
+}
+
+html.intro {
+  overflow: hidden;
+}
+
+html.intro .intro-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-noir);
+  cursor: pointer;
+  /* fail-safe only: the flight normally takes it down well before this */
+  animation: intro-out 0.7s var(--ease-lantern) 6s both;
+  transition: background-color 0.8s var(--ease-lantern);
+}
+
+/* In flight: the ground clears so the logo lands on the live header. */
+html.intro-fly .intro-curtain {
+  background-color: transparent;
+  pointer-events: none;
+}
+
+html.intro-skip .intro-curtain {
+  animation: intro-skip 0.35s ease-out both;
+}
+
+/* Hold the hero's own entrance until the curtain is gone. */
+html.intro .rise {
+  animation-play-state: paused;
+}
+
+/* The header's logo is where the flight lands — keep it empty until then. */
+html.intro header .mark,
+html.intro header .wordmark {
+  opacity: 0;
+}
+
+/* Each part is the full frame masked to its own piece, so they stack in
+   register and share one gold gradient. */
+html.intro .intro-part {
+  overflow: hidden;
+}
+
+/* 1 — the arch, raised course by course from the ground up */
+html.intro .intro-arch {
+  animation: intro-arch 1s var(--ease-lantern) 0.1s both;
+}
+
+/* 2 — the palm and its dates, opening out from where they hang */
+html.intro .intro-palm {
+  animation: intro-palm 0.85s var(--ease-lantern) 0.75s both;
+}
+
+/* 3 — the letters, fading up into the frame */
+html.intro .intro-letters {
+  animation: intro-letters 0.8s ease-out 1.3s both;
+}
+
+/* The glint — one sweep across all three parts, clipped by each one's mask. */
+html.intro .intro-part::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgb(255 248 228 / 0.9) 50%,
+    transparent 70%
+  );
+  transform: translate3d(-130%, 0, 0);
+  animation: intro-glint 0.9s ease-in-out 1.9s both;
+}
+
+html.intro .intro-rule {
+  animation: intro-rule 0.7s var(--ease-lantern) 1.85s both;
+}
+
+html.intro .intro-word {
+  animation: intro-word 0.8s var(--ease-lantern) 2s both;
+}
+
+@keyframes intro-arch {
+  from {
+    opacity: 0;
+    clip-path: inset(100% 0 0 0);
+  }
+  25% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes intro-palm {
+  from {
+    opacity: 0;
+    clip-path: circle(0% at 50% 45%);
+    transform: scale(0.94);
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    clip-path: circle(80% at 50% 45%);
+    transform: none;
+  }
+}
+
+@keyframes intro-letters {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes intro-glint {
+  to {
+    transform: translate3d(130%, 0, 0);
+  }
+}
+
+@keyframes intro-rule {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes intro-word {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0.6rem, 0);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+
+@keyframes intro-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes intro-skip {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

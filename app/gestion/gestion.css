@@ -1,0 +1,232 @@
+/* Back-office styles. Everything reads the site's palette tokens from
+   globals.css, so it stays in the house colours without its own theme.
+   Inside the components layer so Tailwind utilities (hidden, lg:*) still win. */
+
+@layer components {
+.g-shell {
+  --g-line: color-mix(in srgb, var(--color-or) 28%, transparent);
+  --g-soft: color-mix(in srgb, var(--color-ivoire) 62%, var(--color-noir));
+  --g-faint: color-mix(in srgb, var(--color-ivoire) 45%, var(--color-noir));
+  --g-good: #2f6b4f;
+  --g-bad: #a23b2a;
+  --g-warn-bg: color-mix(in srgb, #c98a1a 14%, var(--color-noir));
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.g-shell h1,
+.g-shell h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.g-card {
+  background: var(--color-noir);
+  border: 1px solid var(--g-line);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.g-panel {
+  background: var(--color-brou);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.g-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--g-soft);
+  margin-bottom: 0.3rem;
+}
+
+.g-input {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--color-ivoire) 22%, transparent);
+  border-radius: 7px;
+  background: var(--color-noir);
+  color: var(--color-ivoire);
+  font: inherit;
+}
+.g-input:focus {
+  outline: 2px solid var(--color-or);
+  outline-offset: 0;
+  border-color: transparent;
+}
+textarea.g-input {
+  min-height: 4.5rem;
+}
+
+.g-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0.45rem 1.1rem;
+  border-radius: 7px;
+  font-weight: 500;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.g-btn:hover {
+  background: var(--color-accent-hover);
+}
+.g-btn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+.g-btn-ghost {
+  background: transparent;
+  color: var(--color-ivoire);
+  border: 1px solid color-mix(in srgb, var(--color-ivoire) 22%, transparent);
+}
+.g-btn-ghost:hover {
+  background: var(--color-brou);
+}
+.g-btn-sm {
+  min-height: 1.9rem;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.8125rem;
+}
+.g-link-danger {
+  color: var(--g-bad);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.g-link-danger:hover {
+  text-decoration: underline;
+}
+
+.g-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--g-line);
+  border-radius: 10px;
+}
+.g-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+}
+.g-table th {
+  text-align: start;
+  font-weight: 500;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--g-soft);
+  background: var(--color-brou);
+  padding: 0.55rem 0.75rem;
+  white-space: nowrap;
+}
+.g-table td {
+  padding: 0.55rem 0.75rem;
+  border-top: 1px solid var(--g-line);
+  vertical-align: middle;
+}
+.g-table .num {
+  text-align: end;
+  white-space: nowrap;
+}
+.g-table tfoot td {
+  font-weight: 600;
+  background: var(--color-brou);
+}
+
+.g-badge {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.g-badge-good {
+  color: var(--g-good);
+  background: color-mix(in srgb, var(--g-good) 12%, transparent);
+}
+.g-badge-bad {
+  color: var(--g-bad);
+  background: color-mix(in srgb, var(--g-bad) 12%, transparent);
+}
+.g-badge-muted {
+  color: var(--g-soft);
+  background: var(--color-brou-clair);
+}
+
+.g-neg {
+  color: var(--g-bad);
+}
+.g-muted {
+  color: var(--g-soft);
+}
+
+/* Till product tiles: big tap targets, outlined in gold once in the basket. */
+.g-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-height: 7rem;
+  padding: 0.9rem;
+  text-align: start;
+  background: var(--color-noir);
+  border: 1px solid var(--g-line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.g-tile:hover {
+  background: var(--color-brou);
+}
+.g-tile:active {
+  transform: scale(0.98);
+}
+.g-tile[data-selected] {
+  border-color: var(--color-or);
+  box-shadow: inset 0 0 0 1px var(--color-or);
+}
+.g-tile-count {
+  position: absolute;
+  top: -0.5rem;
+  inset-inline-end: -0.5rem;
+  min-width: 1.6rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.g-nav a {
+  display: block;
+  padding: 0.45rem 0.75rem;
+  border-radius: 7px;
+  color: var(--g-soft);
+}
+.g-nav a:hover {
+  background: var(--color-brou);
+  color: var(--color-ivoire);
+}
+.g-nav a[aria-current="page"] {
+  background: var(--color-brou-clair);
+  color: var(--color-ivoire);
+  font-weight: 500;
+}
+}
+
+/* Arabic letters join, so the small-caps tracking above would break words apart. */
+html[lang="ar"] .g-shell :is(.g-label, .g-table th, h1, h2) {
+  letter-spacing: 0;
+}

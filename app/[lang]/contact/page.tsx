@@ -21,7 +21,7 @@ export default async function ContactPage({ params }: PageProps<"/[lang]/contact
     { label: t.contactPage.phone, value: site.phoneDisplay, href: site.phoneHref },
     { label: t.contactPage.whatsapp, value: t.visit.cta, href: whatsappLink() },
     { label: t.contactPage.email, value: site.email, href: `mailto:${site.email}` },
-    { label: t.contactPage.instagram, value: "@dartawil", href: site.instagram },
+    { label: t.contactPage.instagram, value: "@dartawil.ma", href: site.instagram },
   ];
 
   return (

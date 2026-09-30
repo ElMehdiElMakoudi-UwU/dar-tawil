@@ -141,7 +141,7 @@ export function ContactForm({ t }: { t: Dictionary }) {
           href={whatsappLink(composed)}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-3 bg-or px-7 py-3.5 text-[0.76rem] font-medium uppercase tracking-[0.18em] text-noir transition-colors hover:bg-or-clair"
+          className="cta-primary inline-flex items-center gap-3 bg-or px-7 py-3.5 text-[0.76rem] font-medium uppercase tracking-[0.18em] text-noir transition-colors hover:bg-or-clair"
         >
           {f.sendWhatsapp}
         </a>

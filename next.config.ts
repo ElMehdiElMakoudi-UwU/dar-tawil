@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   // that instead of node_modules, which keeps the image small.
   output: "standalone",
   poweredByHeader: false,
+  // Kept as real node_modules in the standalone output (not bundled), so the
+  // container's migration script can import the driver too.
+  serverExternalPackages: ["postgres"],
 };
 
 export default nextConfig;

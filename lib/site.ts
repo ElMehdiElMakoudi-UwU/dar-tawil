@@ -16,7 +16,7 @@ export const site = {
   /** PLACEHOLDER */
   email: "contact@dartawil.ma",
   /** PLACEHOLDER */
-  instagram: "https://instagram.com/dartawil",
+  instagram: "https://instagram.com/dartawil.ma",
   founded: 2026,
 };
 

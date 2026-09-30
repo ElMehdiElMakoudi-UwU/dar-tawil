@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { Bonbon } from "@/components/bonbon";
 import { Photo } from "@/components/photo";
 import { CtaPrimary, Eyebrow, Lede, PageHeader, Section, Title } from "@/components/ui";
+import { flavours } from "@/lib/flavours";
 import { whatsappLink } from "@/lib/site";
 import { photos } from "@/lib/photos";
 import { getDictionary } from "../dictionaries";
@@ -28,7 +30,7 @@ export default async function CollectionsPage({
       />
 
       <Section>
-        {/* Alternating arches: each coffret gets one, facing the other way. */}
+        {/* Alternating arches: each product line gets one, facing the other way. */}
         <div className="space-y-24 md:space-y-32">
           {t.collections.items.map((item, i) => (
             <article
@@ -41,7 +43,7 @@ export default async function CollectionsPage({
               }`}
             >
               <Photo
-                src={photos.coffret[item.slug] || undefined}
+                src={photos.range[item.slug] || undefined}
                 alt={item.photo}
                 caption={item.photo}
                 pending={t.ui.photoPending}
@@ -62,6 +64,53 @@ export default async function CollectionsPage({
                     {item.composition}
                   </p>
                 </div>
+
+                {item.slug === "dattes" ? (
+                  <div className="mt-8 border-t border-or/22 pt-6">
+                    <p className="text-[0.72rem] uppercase tracking-[0.2em] text-or/75">
+                      {t.collectionsPage.varieties.label}
+                    </p>
+                    <ul className="mt-4 flex flex-wrap gap-2.5">
+                      {t.collectionsPage.varieties.names.map((name) => (
+                        <li
+                          key={name}
+                          className="border border-or/35 px-4 py-2 font-display text-[1rem] text-ivoire/85"
+                        >
+                          {name}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-4 max-w-[46ch] text-[0.85rem] leading-[1.7] text-ivoire/50">
+                      {t.collectionsPage.varieties.note}
+                    </p>
+                  </div>
+                ) : null}
+
+                {item.slug === "chocolats" ? (
+                  <div className="mt-8 border-t border-or/22 pt-6">
+                    <p className="text-[0.72rem] uppercase tracking-[0.2em] text-or/75">
+                      {t.collectionsPage.flavoursLabel}
+                    </p>
+                    <ul className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+                      {flavours.map((flavour) => {
+                        const copy = t.flavours.items[flavour.slug];
+                        return (
+                          <li key={flavour.slug} className="flex items-center gap-3">
+                            <Bonbon flavour={flavour} className="h-auto w-9 shrink-0" />
+                            <span>
+                              <span className="block font-display text-[0.98rem] leading-tight text-ivoire/85">
+                                {copy.name}
+                              </span>
+                              <span className="mt-0.5 block text-[0.75rem] leading-snug text-ivoire/50">
+                                {copy.note}
+                              </span>
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ) : null}
 
                 <p className="mt-7 max-w-[44ch] font-display text-[1.1rem] leading-snug text-or-clair/80">
                   {item.note}

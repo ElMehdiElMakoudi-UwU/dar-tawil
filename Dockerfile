@@ -40,8 +40,13 @@ RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Back office: schema migrations, applied on every start (already-applied
+# ones are skipped). The postgres driver is traced into the standalone node_modules (next.config.ts).
+COPY --from=builder --chown=nextjs:nodejs /app/db ./db
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate.mjs ./scripts/migrate.mjs
 
 USER nextjs
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+# DATABASE_URL is a runtime variable (not a build one): /gestion renders per request.
+CMD ["sh", "-c", "node scripts/migrate.mjs && node server.js"]

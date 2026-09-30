@@ -37,5 +37,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next|api|brand|photos|favicon.ico|robots.txt|sitemap.xml).*)"],
+  // /gestion is the back office: outside the locale scheme (its FR/AR switch is a cookie).
+  matcher: ["/((?!_next|api|gestion|brand|photos|favicon.ico|robots.txt|sitemap.xml).*)"],
 };

@@ -8,22 +8,17 @@
  */
 export const photos = {
   /** Palm grove at harvest — home, "Deux origines", left arch. */
-  originLeft: "",
+  originLeft: "/photos/dattes-detail.jpg",
   /** Belgian couverture being tempered — home, "Deux origines", right arch. */
-  originRight: "",
+  originRight: "/photos/bonbons-detail.jpg",
   /** Shopfront or interior — home, "Passez à la boutique". */
-  visit: "",
+  visit: "/photos/boutique-plateau.jpg",
   /** The workshop or the founders — La maison. */
   maison: "",
-  /** Dfou3 trays laid out — Dfou3 page. */
-  dfou3: "",
-  /** One per coffret, keyed by slug — Collections page. */
-  coffret: {
-    andalou: "",
-    majhoul: "",
-    ganache: "",
-    zellige: "",
-    ramadan: "",
-    dfou3: "",
+  /** One per product line, keyed by slug — Collections page. */
+  range: {
+    dattes: "/photos/dattes-coffret-rond.jpg",
+    chocolats: "/photos/bonbons-coffret.jpg",
+    dfou3: "/photos/boutique-plateau.jpg",
   } as Record<string, string>,
 };

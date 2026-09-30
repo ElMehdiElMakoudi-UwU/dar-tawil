@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { palette } from "@/lib/theme";
+import { Cubes } from "./ornament";
 
 export function Section({
   children,
@@ -107,8 +109,16 @@ export function PageHeader({
   lede: string;
 }) {
   return (
-    <header className="border-b border-or/15 px-5 pb-16 pt-36 md:px-10 md:pb-24 md:pt-48">
-      <div className="mx-auto max-w-[82rem]">
+    <header className="relative overflow-hidden border-b border-or/15 px-5 pb-16 pt-36 md:px-10 md:pb-24 md:pt-48">
+      {palette === "blanc" ? (
+        <Cubes
+          id="cubes-page-header"
+          className="pointer-events-none absolute inset-x-0 top-0 h-3/5 text-or/40"
+          scale={1.5}
+          fade="down"
+        />
+      ) : null}
+      <div className="relative mx-auto max-w-[82rem]">
         <div data-reveal>
           <Eyebrow>{eyebrow}</Eyebrow>
           <Title as="h1" className="mt-5 max-w-[18ch]">

@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Mark } from "@/components/mark";
-import { Khatem, Lattice, StarRule } from "@/components/ornament";
+import { Bonbon } from "@/components/bonbon";
+import { Mark, Wordmark } from "@/components/mark";
+import { Cubes, Khatem, Lattice, StarRule } from "@/components/ornament";
 import { Photo } from "@/components/photo";
 import {
   CtaGhost,
@@ -12,7 +13,9 @@ import {
 } from "@/components/ui";
 import type { Locale } from "@/lib/locales";
 import { whatsappLink } from "@/lib/site";
+import { flavours } from "@/lib/flavours";
 import { photos } from "@/lib/photos";
+import { palette } from "@/lib/theme";
 import { getDictionary } from "./dictionaries";
 
 type OriginCopy = {
@@ -62,32 +65,44 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
   const t = await getDictionary(lang);
   const l = lang as Locale;
   const [line1, line2] = t.hero.title.split("\n");
+  const blanc = palette === "blanc";
 
   return (
     <>
       {/* ── Hero: the mark behind a carved screen, lit from one side ── */}
       <section className="relative flex min-h-[100svh] items-center overflow-hidden">
-        <Lattice
-          id="lattice-hero"
-          className="pointer-events-none absolute inset-0 text-or/[0.11]"
-          scale={1.35}
-        />
-        <div
-          aria-hidden
-          className="lantern-sweep pointer-events-none absolute -inset-x-1/3 inset-y-0"
-          style={{
-            background:
-              "radial-gradient(58% 62% at 50% 42%, rgba(190,148,85,0.20) 0%, rgba(190,148,85,0.07) 38%, transparent 70%)",
-          }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to bottom, rgb(var(--veil) / 0.72) 0%, rgb(var(--veil) / 0.25) 38%, rgb(var(--veil) / 0.86) 100%)",
-          }}
-        />
+        {blanc ? (
+          /* The lid of the box: cube bands top and bottom, the name framed between. */
+          <Cubes
+            id="cubes-hero"
+            className="pointer-events-none absolute inset-0 text-or/45"
+            scale={1.5}
+          />
+        ) : (
+          <>
+            <Lattice
+              id="lattice-hero"
+              className="pointer-events-none absolute inset-0 text-or/[0.11]"
+              scale={1.35}
+            />
+            <div
+              aria-hidden
+              className="lantern-sweep pointer-events-none absolute -inset-x-1/3 inset-y-0"
+              style={{
+                background:
+                  "radial-gradient(58% 62% at 50% 42%, rgba(190,148,85,0.20) 0%, rgba(190,148,85,0.07) 38%, transparent 70%)",
+              }}
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to bottom, rgb(var(--veil) / 0.72) 0%, rgb(var(--veil) / 0.25) 38%, rgb(var(--veil) / 0.86) 100%)",
+              }}
+            />
+          </>
+        )}
 
         <div className="relative mx-auto w-full max-w-[82rem] px-5 pb-24 pt-32 text-center md:px-10 md:pb-28 md:pt-36">
           <Mark
@@ -95,9 +110,19 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
             className="rise mx-auto h-28 w-[5.2rem] md:h-40 md:w-[7.4rem]"
           />
 
-          <p className="rise eyebrow mt-9" style={{ animationDelay: "160ms" }}>
-            {t.hero.eyebrow}
-          </p>
+          {blanc ? (
+            <div
+              className="rise mx-auto mt-9 inline-flex flex-col items-center gap-2 border border-or/60 bg-noir px-9 pb-4 pt-5 md:px-12"
+              style={{ animationDelay: "160ms" }}
+            >
+              <Wordmark size="lg" />
+              <p className="eyebrow">{t.hero.eyebrow}</p>
+            </div>
+          ) : (
+            <p className="rise eyebrow mt-9" style={{ animationDelay: "160ms" }}>
+              {t.hero.eyebrow}
+            </p>
+          )}
 
           <h1
             className="rise monument mx-auto mt-6 max-w-[16ch] text-[clamp(2.5rem,7vw,5.25rem)] text-ivoire"
@@ -124,7 +149,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
             style={{ animationDelay: "500ms" }}
           >
             <CtaPrimary href={`/${l}/collections`}>{t.hero.primary}</CtaPrimary>
-            <CtaGhost href={`/${l}/dfou3`}>{t.hero.secondary}</CtaGhost>
+            <CtaGhost href={`/${l}/contact`}>{t.hero.secondary}</CtaGhost>
           </div>
 
           <p
@@ -173,7 +198,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
         </div>
       </Section>
 
-      {/* ── The collections, laid out as the tray inside a coffret ── */}
+      {/* ── The shop: dates and chocolates, laid out as the tray inside a coffret ── */}
       <Section className="border-t border-or/15">
         <div
           data-reveal
@@ -193,19 +218,12 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
         >
           {t.collections.items.map((item, i) => {
             const isDfou3 = item.slug === "dfou3";
-            const span = [
-              "md:col-span-6 md:row-span-2",
-              "md:col-span-6",
-              "md:col-span-3",
-              "md:col-span-3",
-              "md:col-span-4",
-              "md:col-span-8",
-            ][i];
+            const span = ["md:col-span-6", "md:col-span-6", "md:col-span-12"][i];
 
             return (
               <Link
                 key={item.slug}
-                href={isDfou3 ? `/${l}/dfou3` : `/${l}/collections`}
+                href={isDfou3 ? `/${l}/contact` : `/${l}/collections`}
                 className={`group flex min-h-[15rem] flex-col justify-between px-6 py-8 transition-colors duration-500 md:p-9 ${span} ${
                   isDfou3
                     ? "panel-accent hover:bg-accent-hover"
@@ -256,11 +274,62 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
         </div>
       </Section>
 
+      {/* ── The bonbons, set out like the house's flavour card ── */}
+      <Section className="border-t border-or/15">
+        <div data-reveal className="mx-auto max-w-[52ch] text-center">
+          <Eyebrow>{t.flavours.eyebrow}</Eyebrow>
+          <Title className="mt-5">{t.flavours.title}</Title>
+          <Lede className="mx-auto mt-7">{t.flavours.lede}</Lede>
+        </div>
+
+        <div
+          data-reveal
+          className="relative mt-14 overflow-hidden border border-or/35 px-4 py-12 md:mt-20 md:px-12 md:py-16"
+        >
+          <Lattice
+            id="lattice-flavours"
+            className={`pointer-events-none absolute inset-0 ${
+              blanc ? "text-or/[0.09]" : "text-or/[0.06]"
+            }`}
+            scale={1.2}
+          />
+          {/* Five to a row, the last row centred — the layout of the printed card. */}
+          <ul className="relative flex flex-wrap justify-center gap-y-12">
+            {flavours.map((flavour) => {
+              const copy = t.flavours.items[flavour.slug];
+              return (
+                <li
+                  key={flavour.slug}
+                  className="group flex w-1/2 flex-col items-center px-2 text-center sm:w-1/3 md:w-1/5"
+                >
+                  <Bonbon
+                    flavour={flavour}
+                    className="h-auto w-[4.5rem] transition-transform duration-500 ease-[var(--ease-lantern)] group-hover:-translate-y-1.5 md:w-[5.25rem]"
+                  />
+                  <h3 className="mt-4 font-display text-[1.05rem] leading-snug text-ivoire">
+                    {copy.name}
+                  </h3>
+                  <p className="mt-1.5 max-w-[20ch] text-[0.8rem] leading-relaxed text-ivoire/55">
+                    {copy.note}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        <div data-reveal className="mt-12 flex justify-center">
+          <CtaGhost href={`/${l}/collections`}>{t.flavours.cta}</CtaGhost>
+        </div>
+      </Section>
+
       {/* ── Dfou3 ── */}
       <section className="panel-accent relative overflow-hidden px-5 py-24 md:px-10 md:py-32">
         <Lattice
           id="lattice-dfou3"
-          className="pointer-events-none absolute inset-0 text-on-accent-title/[0.09]"
+          className={`pointer-events-none absolute inset-0 ${
+            blanc ? "text-on-accent-eyebrow/[0.12]" : "text-on-accent-title/[0.09]"
+          }`}
           scale={1.1}
         />
         <div className="relative mx-auto grid max-w-[82rem] gap-14 md:grid-cols-2 md:gap-20">
@@ -272,7 +341,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
               {t.dfou3.body}
             </p>
             <div className="mt-10">
-              <CtaPrimary href={`/${l}/dfou3`}>{t.dfou3.cta}</CtaPrimary>
+              <CtaPrimary href={`/${l}/contact`}>{t.dfou3.cta}</CtaPrimary>
             </div>
             <p className="on-accent-dim mt-6 text-[0.82rem] opacity-80">{t.dfou3.lead}</p>
           </div>

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { palette } from "@/lib/theme";
 import { Lattice } from "./ornament";
 
 let plateSeq = 0;
@@ -55,7 +56,7 @@ export function Photo({
           />
           <Lattice
             id={id}
-            className="absolute inset-0 text-or/[0.13]"
+            className={`absolute inset-0 ${palette === "blanc" ? "text-or/25" : "text-or/[0.13]"}`}
             scale={0.8}
             strokeWidth={1}
           />

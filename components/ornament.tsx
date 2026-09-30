@@ -1,3 +1,5 @@
+import { palette } from "@/lib/theme";
+
 /**
  * Shape primitives lifted straight off the logo: the multifoil arch that frames
  * the monogram, and the star lattice carved inside it. Everything visual on the
@@ -108,6 +110,90 @@ export function Lattice({
   );
 }
 
+/* ── The cubes ─────────────────────────────────────────────────────── */
+
+/** Hexagon side, in pattern units. */
+const HEX = 20;
+const HEX_W = Math.sqrt(3) * HEX;
+
+/** Hexagon outline plus the inner "Y" that turns it into a cube. */
+function cube(cx: number, cy: number) {
+  const h = HEX / 2;
+  const w = HEX_W / 2;
+  const top = `${cx},${cy - HEX}`;
+  const ur = `${cx + w},${cy - h}`;
+  const lr = `${cx + w},${cy + h}`;
+  const bottom = `${cx},${cy + HEX}`;
+  const ll = `${cx - w},${cy + h}`;
+  const ul = `${cx - w},${cy - h}`;
+  const c = `${cx},${cy}`;
+  return `M${top} L${ur} L${lr} L${bottom} L${ll} L${ul} Z M${c} L${bottom} M${c} L${ur} M${c} L${ul}`;
+}
+
+const CUBE_CENTRES: [number, number][] = [
+  [0, 0],
+  [HEX_W, 0],
+  [HEX_W / 2, HEX * 1.5],
+  [0, HEX * 3],
+  [HEX_W, HEX * 3],
+];
+
+/**
+ * The tumbling-block hairlines printed on the lid of every box. On the box
+ * they sit in bands along the top and bottom edges and fade toward the name,
+ * so `fade` masks them the same way.
+ */
+export function Cubes({
+  id,
+  className = "",
+  scale = 1,
+  strokeWidth = 0.6,
+  fade = "both",
+}: {
+  /** Must be unique per instance — it names the SVG pattern. */
+  id: string;
+  className?: string;
+  scale?: number;
+  strokeWidth?: number;
+  fade?: "both" | "down" | "up" | "none";
+}) {
+  const mask = {
+    both: "linear-gradient(to bottom, #000 0%, transparent 34%, transparent 66%, #000 100%)",
+    down: "linear-gradient(to bottom, #000 0%, transparent 100%)",
+    up: "linear-gradient(to top, #000 0%, transparent 100%)",
+    none: undefined,
+  }[fade];
+
+  return (
+    <svg
+      aria-hidden
+      className={className}
+      width="100%"
+      height="100%"
+      style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined}
+    >
+      <defs>
+        <pattern
+          id={id}
+          width={HEX_W * scale}
+          height={HEX * 3 * scale}
+          patternUnits="userSpaceOnUse"
+          viewBox={`0 0 ${HEX_W} ${HEX * 3}`}
+        >
+          <path
+            d={CUBE_CENTRES.map(([x, y]) => cube(x, y)).join(" ")}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            strokeLinejoin="round"
+          />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill={`url(#${id})`} />
+    </svg>
+  );
+}
+
 /* ── The hairline that separates sections ─────────────────────────── */
 
 /** The eight-pointed star on its own, at any size. */
@@ -143,5 +229,29 @@ export function StarRule({ className = "" }: { className?: string }) {
       <Khatem />
       <span className="h-px flex-1 bg-current" />
     </div>
+  );
+}
+
+/* ── Section grounds ──────────────────────────────────────────────── */
+
+/**
+ * The pattern a large surface sits on, chosen by palette: the carved lattice
+ * for the dark grounds, the printed cubes of the box lid for "blanc".
+ */
+export function Ground({
+  id,
+  className = "",
+  scale = 1,
+  fade,
+}: {
+  id: string;
+  className?: string;
+  scale?: number;
+  fade?: "both" | "down" | "up" | "none";
+}) {
+  return palette === "blanc" ? (
+    <Cubes id={id} className={className} scale={scale} fade={fade} />
+  ) : (
+    <Lattice id={id} className={className} scale={scale} />
   );
 }
