@@ -12,6 +12,7 @@ export default async function AppLayout({ children }: LayoutProps<"/gestion">) {
   const main = [
     { href: "/gestion", label: t.nav.today },
     { href: "/gestion/pos", label: t.nav.till },
+    { href: "/gestion/orders", label: t.nav.orders },
     { href: "/gestion/sales/new", label: t.nav.newSale },
     { href: "/gestion/sales", label: t.nav.sales },
     { href: "/gestion/products", label: t.nav.products },

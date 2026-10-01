@@ -19,7 +19,14 @@ export default async function SalesPage({ searchParams }: PageProps<"/gestion/sa
   const isAdmin = user.role === "admin";
 
   const revenue = rows.reduce((s, r) => s + r.total, 0);
-  const unpaid = rows.filter((r) => !r.paid).reduce((s, r) => s + r.total, 0);
+  // Less what came in on those sales already (deposits), counted once per sale.
+  const unpaidSales = new Map<string, { total: number; received: number }>();
+  for (const r of rows.filter((r) => !r.paid)) {
+    const o = unpaidSales.get(r.order_no) ?? { total: 0, received: r.received };
+    o.total += r.total;
+    unpaidSales.set(r.order_no, o);
+  }
+  const unpaid = [...unpaidSales.values()].reduce((s, o) => s + Math.max(o.total - o.received, 0), 0);
   const profit = rows.reduce((s, r) => s + (r.profit ?? 0), 0);
 
   return (

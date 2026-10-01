@@ -81,16 +81,17 @@ export function Select({
   );
 }
 
-/** ‹ September 2026 › — prev/next month links that keep the page's path. */
-export async function MonthNav({ month, path }: { month: string; path: string }) {
+/** ‹ September 2026 › — prev/next month links that keep the page's path (and any other `params`). */
+export async function MonthNav({ month, path, params = {} }: { month: string; path: string; params?: Record<string, string> }) {
   const [lang, t] = await Promise.all([getLang(), getT()]);
+  const href = (m: string) => `${path}?${new URLSearchParams({ ...params, month: m })}`;
   return (
     <nav className="flex items-center gap-1" aria-label={t.common.month}>
-      <Link className="g-btn g-btn-ghost g-btn-sm" href={`${path}?month=${shiftMonth(month, -1)}`} aria-label={t.common.prevMonth}>
+      <Link className="g-btn g-btn-ghost g-btn-sm" href={href(shiftMonth(month, -1))} aria-label={t.common.prevMonth}>
         ‹
       </Link>
       <span className="min-w-36 text-center font-medium">{monthLabel(month, lang)}</span>
-      <Link className="g-btn g-btn-ghost g-btn-sm" href={`${path}?month=${shiftMonth(month, 1)}`} aria-label={t.common.nextMonth}>
+      <Link className="g-btn g-btn-ghost g-btn-sm" href={href(shiftMonth(month, 1))} aria-label={t.common.nextMonth}>
         ›
       </Link>
     </nav>

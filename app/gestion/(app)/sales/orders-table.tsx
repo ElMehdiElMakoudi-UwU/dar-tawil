@@ -82,6 +82,11 @@ export async function OrdersTable({ rows, isAdmin }: { rows: SaleRow[]; isAdmin:
                 {isAdmin && <td className={`num ${orderProfit < 0 ? "g-neg" : ""}`}>{mad(orderProfit)}</td>}
                 <td>
                   <Paid paid={paid} />
+                  {!paid && first.received > 0 && (
+                    <div className="g-muted text-xs tabular-nums">
+                      {fill(t.orders.received, { amount: mad(first.received), rest: mad(Math.max(orderTotal - first.received, 0)) })}
+                    </div>
+                  )}
                   {first.payment && <div className="g-muted text-xs">{first.payment}</div>}
                 </td>
                 <td className="text-end">

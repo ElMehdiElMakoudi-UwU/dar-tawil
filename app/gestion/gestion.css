@@ -92,6 +92,10 @@ textarea.g-input {
 .g-btn-ghost:hover {
   background: var(--color-brou);
 }
+.g-btn-ghost[aria-current="page"] {
+  background: var(--color-brou-clair);
+  border-color: var(--color-or);
+}
 .g-btn-sm {
   min-height: 1.9rem;
   padding: 0.2rem 0.65rem;
@@ -156,6 +160,14 @@ textarea.g-input {
 .g-badge-bad {
   color: var(--g-bad);
   background: color-mix(in srgb, var(--g-bad) 12%, transparent);
+}
+.g-badge-warn {
+  color: #c98a1a;
+  background: color-mix(in srgb, #c98a1a 14%, transparent);
+}
+.g-badge-gold {
+  color: var(--color-or);
+  background: color-mix(in srgb, var(--color-or) 16%, transparent);
 }
 .g-badge-muted {
   color: var(--g-soft);

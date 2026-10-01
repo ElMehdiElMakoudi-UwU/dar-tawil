@@ -1,6 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import type { TransactionSql } from "postgres";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -8,7 +9,10 @@ import { createSession, destroySession, endAllSessions, requireAdmin, requireUse
 import { sql } from "@/lib/gestion/db";
 import { checked, date, handle, id, InputError, number, oneOf, text, type FormState } from "@/lib/gestion/form";
 import { fill, isLang, type Dict } from "@/lib/gestion/i18n";
+import { today } from "@/lib/gestion/format";
 import { getT, LANG_COOKIE } from "@/lib/gestion/lang";
+import { orderStatuses } from "@/lib/gestion/queries";
+import { insertSale, linesTotal, parseLines } from "@/lib/gestion/sale-lines";
 
 /*
  * Every action re-checks the role itself: server actions are public HTTP
@@ -103,9 +107,6 @@ function passwordField(fd: FormData, key = "password") {
 
 /* ── sales ────────────────────────────────────────────────────────── */
 
-/** alt: sold in the product's second unit (e.g. by the piece) instead of its stock unit. */
-type Line = { productId: number; qty: number; unitPrice: number; discount: number; alt?: boolean };
-
 export async function createSale(_: FormState, fd: FormData): Promise<FormState> {
   const user = await requireUser();
   return handle(async (t) => {
@@ -114,21 +115,7 @@ export async function createSale(_: FormState, fd: FormData): Promise<FormState>
     const channel = text(fd, "channel");
     const payment = text(fd, "payment");
     const paid = checked(fd, "paid");
-
-    let lines: Line[];
-    try {
-      lines = JSON.parse(String(fd.get("lines") ?? "[]"));
-    } catch {
-      throw new InputError("readProducts");
-    }
-    lines = lines.filter((l) => l && l.productId);
-    if (!lines.length) throw new InputError("addProduct");
-    for (const l of lines) {
-      if (!Number.isInteger(l.productId)) throw new InputError("pickProduct");
-      if (!(l.qty > 0)) throw new InputError("qtyPositive");
-      if (!(l.unitPrice >= 0)) throw new InputError("priceNegative");
-      if (!(l.discount >= 0 && l.discount <= 100)) throw new InputError("discountRange");
-    }
+    const lines = parseLines(fd);
 
     const orderNo = await sql.begin(async (tx) => {
       let customerId: number | null = null;
@@ -139,27 +126,7 @@ export async function createSale(_: FormState, fd: FormData): Promise<FormState>
         `;
         customerId = c.id;
       }
-      const [{ no }] = await tx<{ no: string }[]>`select 'O' || lpad(nextval('order_seq')::text, 5, '0') as no`;
-      for (const l of lines) {
-        // Unit, factor and unit_cost come from the product server-side; staff
-        // never send or see the cost. unit_cost is per unit sold.
-        const alt = l.alt === true;
-        const inserted = await tx`
-          insert into sales (date, order_no, customer_id, channel, product_id, qty, unit, factor, unit_price, discount_pct, unit_cost, payment, paid, created_by)
-          select ${day}, ${no}, ${customerId}, ${channel}, p.id, ${l.qty}, u.unit, u.factor, ${l.unitPrice}, ${l.discount},
-                 round(p.unit_cost * u.factor, 4), ${payment}, ${paid}, ${user.id}
-          from products p
-          cross join lateral (
-            select case when ${alt} then p.alt_unit else p.unit end as unit,
-                   case when ${alt} then p.alt_factor else 1 end as factor
-          ) u
-          where p.id = ${l.productId} and p.active and u.unit is not null
-        `;
-        if (inserted.count !== 1) {
-          throw new InputError(alt ? "altGone" : "productGone");
-        }
-      }
-      return no;
+      return insertSale(tx, { day, customerId, channel, payment, paid, userId: user.id, lines });
     });
     refresh();
     return fill(t.ok.orderSaved, { no: orderNo });
@@ -173,7 +140,11 @@ export async function setOrderPaid(_: FormState, fd: FormData): Promise<FormStat
     const orderNo = text(fd, "order_no", { required: true })!;
     const paid = fd.get("paid") === "true";
     if (!paid && user.role !== "admin") throw new InputError("unpaidAdmin");
-    await sql`update sales set paid = ${paid} where order_no = ${orderNo}`;
+    await sql.begin(async (tx) => {
+      await tx`update sales set paid = ${paid} where order_no = ${orderNo}`;
+      // A sale made from a delivered order: keep the order in step.
+      await tx`update orders set paid = ${paid} where sale_no = ${orderNo}`;
+    });
     refresh();
   });
 }
@@ -181,7 +152,170 @@ export async function setOrderPaid(_: FormState, fd: FormData): Promise<FormStat
 export async function deleteSale(_: FormState, fd: FormData): Promise<FormState> {
   await requireAdmin();
   return handle(async (t) => {
-    await sql`delete from sales where id = ${id(fd)}`;
+    await sql.begin(async (tx) => {
+      const [s] = await tx<{ order_no: string }[]>`delete from sales where id = ${id(fd)} returning order_no`;
+      // Its last line gone: so is the money received on it.
+      if (s) await tx`delete from sale_payments where order_no = ${s.order_no} and not exists (select 1 from sales where order_no = ${s.order_no})`;
+    });
+    refresh();
+    return t.ok.deleted;
+  });
+}
+
+/* ── orders to prepare ────────────────────────────────────────────── */
+
+/**
+ * Staff take and edit orders; the customer is added to Customers on the way,
+ * like a sale. Editing an order that was already delivered rewrites its sale.
+ */
+export async function saveOrder(_: FormState, fd: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const result = await handle(async (t) => {
+    const orderId = Number(fd.get("id")) || null;
+    const customerName = text(fd, "customer", { required: true, label: t.field.customer })!;
+    const phone = text(fd, "phone");
+    const city = text(fd, "city");
+    const dueTime = text(fd, "due_time");
+    if (dueTime && !/^\d{2}:\d{2}$/.test(dueTime)) throw new InputError("badTime");
+    const lines = parseLines(fd);
+    const deposit = number(fd, "deposit", { min: 0, label: t.field.deposit }) ?? 0;
+    const total = linesTotal(lines);
+    if (deposit > total + 0.005) throw new InputError("depositOverTotal");
+    const values = {
+      customer_name: customerName,
+      phone,
+      channel: text(fd, "channel"),
+      fulfilment: oneOf(fd, "fulfilment", ["delivery", "pickup"] as const, t.field.fulfilment),
+      due_date: date(fd, "due_date", t.field.dueDate),
+      due_time: dueTime,
+      address: text(fd, "address"),
+      city,
+      items: text(fd, "items"),
+      notes: text(fd, "notes"),
+      deposit,
+      payment: text(fd, "payment"),
+      // A deposit of the whole amount is a full payment.
+      paid: checked(fd, "paid") || (total > 0 && deposit >= total - 0.005),
+    };
+
+    await sql.begin(async (tx) => {
+      // Fills in a known customer's missing phone or city, never overwrites them.
+      const [c] = await tx<{ id: number }[]>`
+        insert into customers (name, phone, city) values (${customerName}, ${phone}, ${city})
+        on conflict (name) do update set phone = coalesce(customers.phone, excluded.phone),
+                                         city = coalesce(customers.city, excluded.city)
+        returning id
+      `;
+      const row = { ...values, customer_id: c.id };
+      let id = orderId;
+      if (id) {
+        const updated = await tx`update orders set ${tx(row)} where id = ${id}`;
+        if (updated.count !== 1) throw new InputError("missing");
+        await tx`delete from order_lines where order_id = ${id}`;
+      } else {
+        [{ id }] = await tx<{ id: number }[]>`insert into orders ${tx({ ...row, created_by: user.id })} returning id`;
+      }
+      await tx`
+        insert into order_lines ${tx(
+          lines.map((l, i) => ({
+            order_id: id,
+            product_id: l.productId,
+            qty: l.qty,
+            alt: l.alt === true,
+            unit_price: l.unitPrice,
+            discount_pct: l.discount,
+            position: i,
+          })),
+        )}
+      `;
+      const [o] = await tx<{ sale_no: string | null }[]>`select sale_no from orders where id = ${id}`;
+      if (o.sale_no) {
+        // Same sale number and date; current product costs.
+        const [{ day }] = await tx<{ day: string | null }[]>`select min(date) as day from sales where order_no = ${o.sale_no}`;
+        await tx`delete from sales where order_no = ${o.sale_no}`;
+        await insertSale(tx, {
+          no: o.sale_no, day: day ?? today(), customerId: c.id, channel: values.channel,
+          payment: values.payment, paid: values.paid, userId: user.id, lines,
+        });
+        await syncDeposit(tx, id!, o.sale_no, user.id);
+      }
+    });
+    refresh();
+  });
+  if (result?.error) return result;
+  redirect("/gestion/orders");
+}
+
+/**
+ * The order's deposit, as a payment received on its sale on the day the
+ * order was taken. Replaces the one copied before, if the order was edited.
+ */
+async function syncDeposit(tx: TransactionSql<any>, orderId: number, saleNo: string, userId: number) {
+  await tx`delete from sale_payments where order_no = ${saleNo} and order_id = ${orderId}`;
+  await tx`
+    insert into sale_payments (order_no, order_id, date, amount, created_by)
+    select ${saleNo}, id, (created_at at time zone 'Africa/Casablanca')::date, deposit, ${userId}
+    from orders where id = ${orderId} and deposit > 0
+  `;
+}
+
+/**
+ * Moving an order to "delivered" records it as a sale, dated today, with the
+ * order's lines and prices; moving it out of "delivered" removes that sale.
+ */
+export async function setOrderStatus(_: FormState, fd: FormData): Promise<FormState> {
+  const user = await requireUser();
+  return handle(async (t) => {
+    const status = oneOf(fd, "status", orderStatuses, t.field.status);
+    const orderId = id(fd);
+    await sql.begin(async (tx) => {
+      const [o] = await tx<{
+        status: string; sale_no: string | null; customer_id: number | null;
+        channel: string | null; payment: string | null; paid: boolean;
+      }[]>`select status, sale_no, customer_id, channel, payment, paid from orders where id = ${orderId} for update`;
+      if (!o) throw new InputError("missing");
+      if (o.status === status) return;
+
+      let saleNo = o.sale_no;
+      if (status === "delivered" && !saleNo) {
+        const lines = await tx<{ productId: number; qty: number; alt: boolean; unitPrice: number; discount: number }[]>`
+          select product_id as "productId", qty, alt, unit_price as "unitPrice", discount_pct as discount
+          from order_lines where order_id = ${orderId} order by position, id
+        `;
+        if (!lines.length) throw new InputError("orderNoLines");
+        saleNo = await insertSale(tx, {
+          day: today(), customerId: o.customer_id, channel: o.channel,
+          payment: o.payment, paid: o.paid, userId: user.id, lines,
+        });
+        await syncDeposit(tx, orderId, saleNo, user.id);
+      } else if (status !== "delivered" && saleNo) {
+        await tx`delete from sales where order_no = ${saleNo}`;
+        await tx`delete from sale_payments where order_no = ${saleNo}`;
+        saleNo = null;
+      }
+      await tx`update orders set status = ${status}, status_at = now(), sale_no = ${saleNo} where id = ${orderId}`;
+    });
+    refresh();
+  });
+}
+
+export async function markOrderPaid(_: FormState, fd: FormData): Promise<FormState> {
+  await requireUser();
+  return handle(async () => {
+    const orderId = id(fd);
+    await sql.begin(async (tx) => {
+      const [o] = await tx<{ sale_no: string | null }[]>`update orders set paid = true where id = ${orderId} returning sale_no`;
+      if (o?.sale_no) await tx`update sales set paid = true where order_no = ${o.sale_no}`;
+    });
+    refresh();
+  });
+}
+
+/** Its sale, if delivered, stays: that money really came in. */
+export async function deleteOrder(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin();
+  return handle(async (t) => {
+    await sql`delete from orders where id = ${id(fd)}`;
     refresh();
     return t.ok.deleted;
   });

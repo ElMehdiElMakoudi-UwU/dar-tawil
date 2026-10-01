@@ -86,10 +86,27 @@ export async function getProductAdmin(id: number) {
 
 /* ── sales ────────────────────────────────────────────────────────── */
 
+/** Per sale: what came in before it was fully paid (deposits). */
+const received = sql`(select order_no, sum(amount) as amount from sale_payments group by 1)`;
+
+/**
+ * What each not-yet-paid sale still owes: its total minus what came in.
+ * One row per order_no; `filter` narrows the sales lines.
+ */
+const owedSales = (filter = sql`true`) => sql`
+  select s.order_no, min(s.customer_id) as customer_id,
+         greatest(sum(s.qty * s.unit_price * (1 - s.discount_pct / 100)) - coalesce(max(r.amount), 0), 0) as owed
+  from sales s left join ${received} r on r.order_no = s.order_no
+  where not s.paid and ${filter}
+  group by s.order_no
+`;
+
 export type SaleRow = {
   id: number; date: string; order_no: string; customer: string | null; channel: string | null;
   sku: string; product: string; qty: number; unit: string; unit_price: number; discount_pct: number; total: number;
   payment: string | null; paid: boolean; created_by: string | null;
+  /** Received so far on the whole sale (same on each of its lines). */
+  received: number;
   cogs?: number; profit?: number;
 };
 
@@ -100,12 +117,13 @@ export async function getSales(month: string) {
   return sql<SaleRow[]>`
     select s.id, s.date, s.order_no, c.name as customer, s.channel, p.sku, p.name as product,
            s.qty, s.unit, s.unit_price, s.discount_pct, s.qty * s.unit_price * (1 - s.discount_pct / 100) as total,
-           s.payment, s.paid, u.name as created_by
+           s.payment, s.paid, u.name as created_by, coalesce(r.amount, 0) as received
            ${admin ? sql`, s.qty * s.unit_cost as cogs, s.qty * s.unit_price * (1 - s.discount_pct / 100) - s.qty * s.unit_cost as profit` : sql``}
     from sales s
     join products p on p.id = s.product_id
     left join customers c on c.id = s.customer_id
     left join users u on u.id = s.created_by
+    left join ${received} r on r.order_no = s.order_no
     where s.date between ${from} and ${to}
     order by s.date desc, s.order_no desc, s.id
   `;
@@ -113,11 +131,12 @@ export async function getSales(month: string) {
 
 export async function getTodaySummary() {
   await requireUser();
+  const day = today();
   const [row] = await sql<{ lines: number; orders: number; total: number; unpaid: number }[]>`
     select count(*)::int as lines, count(distinct order_no)::int as orders,
            coalesce(sum(qty * unit_price * (1 - discount_pct / 100)), 0) as total,
-           coalesce(sum(qty * unit_price * (1 - discount_pct / 100)) filter (where not paid), 0) as unpaid
-    from sales where date = ${today()}
+           (select coalesce(sum(owed), 0) from (${owedSales(sql`s.date = ${day}`)}) o) as unpaid
+    from sales where date = ${day}
   `;
   return row;
 }
@@ -134,10 +153,78 @@ export async function getCustomers() {
            count(s.id)::int as lines,
            coalesce(sum(s.qty * s.unit_price * (1 - s.discount_pct / 100)), 0) as spent,
            max(s.date) as last_order,
-           coalesce(sum(s.qty * s.unit_price * (1 - s.discount_pct / 100)) filter (where not s.paid), 0) as unpaid
+           coalesce(max(o.owed), 0) as unpaid
     from customers c left join sales s on s.customer_id = c.id
+    left join (select customer_id, sum(owed) as owed from (${owedSales()}) x group by 1) o on o.customer_id = c.id
     group by c.id order by c.name
   `;
+}
+
+/* ── orders to prepare ────────────────────────────────────────────── */
+
+export const orderStatuses = ["new", "preparing", "ready", "out", "delivered", "cancelled"] as const;
+export type OrderStatus = (typeof orderStatuses)[number];
+export const openStatuses: readonly OrderStatus[] = ["new", "preparing", "ready", "out"];
+
+export type OrderLine = {
+  productId: number; product: string; unit: string; qty: number; alt: boolean; unitPrice: number; discount: number;
+};
+
+export type Order = {
+  id: number; no: string; customer_name: string; phone: string | null; channel: string | null;
+  fulfilment: "delivery" | "pickup"; due_date: string; due_time: string | null;
+  address: string | null; city: string | null; items: string | null; notes: string | null;
+  lines: OrderLine[]; total: number; deposit: number; payment: string | null; paid: boolean;
+  status: OrderStatus; sale_no: string | null; sale_date: string | null; created_by: string | null;
+};
+
+// Lines come back as JSON, so their numbers are plain floats; fine at these amounts.
+const orderCols = sql`
+  o.id, o.no, o.customer_name, o.phone, o.channel, o.fulfilment, o.due_date, o.due_time,
+  o.address, o.city, o.items, o.notes, o.deposit, o.payment, o.paid, o.status, o.sale_no, u.name as created_by,
+  coalesce(l.lines, '[]') as lines, coalesce(l.total, 0) as total,
+  (select min(s.date) from sales s where s.order_no = o.sale_no) as sale_date
+`;
+const orderJoins = sql`
+  left join users u on u.id = o.created_by
+  left join lateral (
+    select json_agg(json_build_object(
+             'productId', p.id, 'product', p.name, 'unit', case when ol.alt then p.alt_unit else p.unit end,
+             'qty', ol.qty, 'alt', ol.alt, 'unitPrice', ol.unit_price, 'discount', ol.discount_pct
+           ) order by ol.position, ol.id) as lines,
+           sum(ol.qty * ol.unit_price * (1 - ol.discount_pct / 100)) as total
+    from order_lines ol join products p on p.id = ol.product_id
+    where ol.order_id = o.id
+  ) l on true
+`;
+
+/** Everything not yet delivered or cancelled, soonest first. */
+export async function getOpenOrders() {
+  await requireUser();
+  return sql<Order[]>`
+    select ${orderCols} from orders o ${orderJoins}
+    where o.status in ${sql(openStatuses)}
+    order by o.due_date, o.due_time nulls last, o.id
+  `;
+}
+
+/** Delivered and cancelled orders that were due in a month, latest first. */
+export async function getClosedOrders(month: string) {
+  await requireUser();
+  const { from, to } = monthRange(month);
+  return sql<Order[]>`
+    select ${orderCols} from orders o ${orderJoins}
+    where o.status in ('delivered', 'cancelled') and o.due_date between ${from} and ${to}
+    order by o.due_date desc, o.due_time desc nulls last, o.id desc
+  `;
+}
+
+export async function getOrder(id: number) {
+  await requireUser();
+  const [o] = await sql<Order[]>`
+    select ${orderCols} from orders o ${orderJoins} where o.id = ${id}
+  `;
+  return o ?? null;
 }
 
 /* ── admin: purchases, expenses ───────────────────────────────────── */
@@ -297,7 +384,7 @@ export async function getDashboard(year: number) {
          from products p ${stockJoin}) as stock_value,
       (select count(*)::int from products p ${stockJoin}
          where p.active and p.opening_stock + coalesce(pu.q, 0) - coalesce(s.q, 0) <= p.reorder_level) as to_reorder,
-      (select coalesce(sum(qty * unit_price * (1 - discount_pct / 100)), 0) from sales where not paid) as customers_owe,
+      (select coalesce(sum(owed), 0) from (${owedSales()}) o) as customers_owe,
       (select coalesce(sum(qty * unit_cost), 0) from purchases where not paid) as owe_suppliers
   `;
 

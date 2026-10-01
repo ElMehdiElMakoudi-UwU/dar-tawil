@@ -61,7 +61,30 @@ export function dateLabel(date: string, lang: Lang) {
   return utc(date).toLocaleDateString(dateLocale[lang], { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
+/** "ven. 3 oct." — for due dates in the coming days. */
+export function weekdayLabel(date: string, lang: Lang) {
+  return utc(date).toLocaleDateString(dateLocale[lang], { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+}
+
+/** The day after a YYYY-MM-DD date. */
+export function nextDay(date: string) {
+  const d = utc(date);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 /** Short month name for 1–12. */
 export function monthName(m: number, lang: Lang) {
   return utc(`2000-${String(m).padStart(2, "0")}`).toLocaleDateString(dateLocale[lang], { month: "short", timeZone: "UTC" });
+}
+
+/**
+ * wa.me link for a phone typed the Moroccan way (06…, +212 6…, 00212 6…);
+ * null when there aren't enough digits to be a number.
+ */
+export function whatsappLink(phone: string | null | undefined) {
+  let d = (phone ?? "").replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  else if (d.startsWith("0")) d = "212" + d.slice(1);
+  return d.length >= 9 ? `https://wa.me/${d}` : null;
 }
