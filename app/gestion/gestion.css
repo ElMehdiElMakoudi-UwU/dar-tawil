@@ -221,13 +221,13 @@ textarea.g-input {
   font-variant-numeric: tabular-nums;
 }
 
-.g-nav a {
-  display: block;
-  padding: 0.45rem 0.75rem;
-  border-radius: 7px;
+/* Layout lives in the nav's utility classes; this is colour and state only. */
+.g-nav a,
+.g-nav-group {
   color: var(--g-soft);
 }
-.g-nav a:hover {
+.g-nav a:hover,
+.g-nav-group:hover {
   background: var(--color-brou);
   color: var(--color-ivoire);
 }
@@ -235,6 +235,13 @@ textarea.g-input {
   background: var(--color-brou-clair);
   color: var(--color-ivoire);
   font-weight: 500;
+}
+.g-nav a[aria-current="page"] svg,
+.g-nav-group[data-active] svg:first-child {
+  color: var(--color-or);
+}
+.g-nav-group[data-active] {
+  color: var(--color-ivoire);
 }
 }
 
