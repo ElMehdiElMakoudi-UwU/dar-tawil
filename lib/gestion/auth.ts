@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "./db";
 
@@ -10,6 +10,16 @@ export type User = { id: number; name: string; email: string; role: Role };
 
 const COOKIE = "dt_session";
 const SESSION_DAYS = 30;
+
+/**
+ * Secure only when the request really came over HTTPS (Coolify's proxy sets
+ * x-forwarded-proto). A Secure cookie sent over plain http is dropped by the
+ * browser, which looks like being logged out on every click.
+ */
+async function isHttps() {
+  const proto = (await headers()).get("x-forwarded-proto")?.split(",")[0].trim();
+  return proto === "https";
+}
 
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -49,7 +59,7 @@ export async function createSession(userId: number) {
   await sql`delete from sessions where expires_at < now()`;
   (await cookies()).set(COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: await isHttps(),
     sameSite: "lax",
     path: "/gestion",
     expires,
