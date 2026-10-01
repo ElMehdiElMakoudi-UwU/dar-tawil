@@ -44,6 +44,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # ones are skipped). The postgres driver is traced into the standalone node_modules (next.config.ts).
 COPY --from=builder --chown=nextjs:nodejs /app/db ./db
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate.mjs ./scripts/migrate.mjs
+# Demo data, loaded by hand from the container terminal: node scripts/seed-demo.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/seed-demo.mjs ./scripts/seed-demo.mjs
 
 USER nextjs
 EXPOSE 3000
