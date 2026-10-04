@@ -1,6 +1,7 @@
 import "server-only";
 import { requireAdmin, requireUser } from "./auth";
 import { sql } from "./db";
+import type { AdjustReason } from "./adjust";
 import { monthRange, today } from "./format";
 
 /*
@@ -27,12 +28,16 @@ export async function getListRows() {
 
 /* ── products & stock ─────────────────────────────────────────────── */
 
+// Returns are negative sale lines, so they come back into stock here by
+// themselves; adjustments (losses, counts) are signed.
 const stockJoin = sql`
   left join (select product_id, sum(qty) as q from purchases group by 1) pu on pu.product_id = p.id
   left join (select product_id, sum(qty * factor) as q, sum(qty * unit_price * (1 - discount_pct / 100)) as rev,
                     sum(qty * unit_cost) as cogs
              from sales group by 1) s on s.product_id = p.id
+  left join (select product_id, sum(qty) as q from stock_adjustments group by 1) adj on adj.product_id = p.id
 `;
+const inStock = sql`(p.opening_stock + coalesce(pu.q, 0) - coalesce(s.q, 0) + coalesce(adj.q, 0))`;
 
 export type StaffProduct = {
   id: number; sku: string; name: string; category: string | null; unit: string;
@@ -45,7 +50,7 @@ export async function getProducts({ activeOnly = false } = {}) {
   return sql<StaffProduct[]>`
     select p.id, p.sku, p.name, p.category, p.unit, p.price, p.reorder_level, p.active,
            p.alt_unit, p.alt_factor, p.alt_price,
-           p.opening_stock + coalesce(pu.q, 0) - coalesce(s.q, 0) as in_stock
+           ${inStock} as in_stock
     from products p ${stockJoin}
     where ${activeOnly ? sql`p.active` : sql`true`}
     order by p.active desc, p.category nulls last, p.name
@@ -63,8 +68,8 @@ export async function getProductsAdmin() {
     select p.id, p.sku, p.name, p.category, p.unit, p.price, p.unit_cost, p.opening_stock, p.reorder_level, p.active,
            p.alt_unit, p.alt_factor, p.alt_price,
            coalesce(pu.q, 0) as purchased, coalesce(s.q, 0) as sold,
-           p.opening_stock + coalesce(pu.q, 0) - coalesce(s.q, 0) as in_stock,
-           (p.opening_stock + coalesce(pu.q, 0) - coalesce(s.q, 0)) * p.unit_cost as stock_value,
+           ${inStock} as in_stock,
+           ${inStock} * p.unit_cost as stock_value,
            coalesce(s.rev, 0) as revenue, coalesce(s.rev, 0) - coalesce(s.cogs, 0) as profit
     from products p ${stockJoin}
     order by p.active desc, p.category nulls last, p.name
@@ -82,6 +87,30 @@ export async function getProductAdmin(id: number) {
     from products where id = ${id}
   `;
   return p ?? null;
+}
+
+
+export type Adjustment = {
+  id: number; date: string; sku: string; product: string; unit: string; qty: number; reason: AdjustReason;
+  notes: string | null; created_by: string | null; from_return: string | null;
+  /** Admin only: what the stock that moved was worth at cost (negative = lost). */
+  value?: number;
+};
+
+export async function getAdjustments(month: string) {
+  const user = await requireUser();
+  const { from, to } = monthRange(month);
+  return sql<Adjustment[]>`
+    select a.id, a.date, p.sku, p.name as product, p.unit, a.qty, a.reason, a.notes, u.name as created_by,
+           s.order_no as from_return
+           ${user.role === "admin" ? sql`, a.qty * a.unit_cost as value` : sql``}
+    from stock_adjustments a
+    join products p on p.id = a.product_id
+    left join users u on u.id = a.created_by
+    left join sales s on s.id = a.sale_id
+    where a.date between ${from} and ${to}
+    order by a.date desc, a.id desc
+  `;
 }
 
 /* ── sales ────────────────────────────────────────────────────────── */
@@ -107,6 +136,9 @@ export type SaleRow = {
   payment: string | null; paid: boolean; created_by: string | null;
   /** Received so far on the whole sale (same on each of its lines). */
   received: number;
+  /** On a credit note's lines: the sale they give back. */
+  return_of_no: string | null;
+  invoice_no: string | null;
   cogs?: number; profit?: number;
 };
 
@@ -117,13 +149,16 @@ export async function getSales(month: string) {
   return sql<SaleRow[]>`
     select s.id, s.date, s.order_no, c.name as customer, s.channel, p.sku, p.name as product,
            s.qty, s.unit, s.unit_price, s.discount_pct, s.qty * s.unit_price * (1 - s.discount_pct / 100) as total,
-           s.payment, s.paid, u.name as created_by, coalesce(r.amount, 0) as received
+           s.payment, s.paid, u.name as created_by, coalesce(r.amount, 0) as received,
+           ro.order_no as return_of_no, i.no as invoice_no
            ${admin ? sql`, s.qty * s.unit_cost as cogs, s.qty * s.unit_price * (1 - s.discount_pct / 100) - s.qty * s.unit_cost as profit` : sql``}
     from sales s
     join products p on p.id = s.product_id
     left join customers c on c.id = s.customer_id
     left join users u on u.id = s.created_by
     left join ${received} r on r.order_no = s.order_no
+    left join sales ro on ro.id = s.return_of
+    left join invoices i on i.order_no = s.order_no
     where s.date between ${from} and ${to}
     order by s.date desc, s.order_no desc, s.id
   `;
@@ -133,7 +168,7 @@ export async function getTodaySummary() {
   await requireUser();
   const day = today();
   const [row] = await sql<{ lines: number; orders: number; total: number; unpaid: number }[]>`
-    select count(*)::int as lines, count(distinct order_no)::int as orders,
+    select count(*)::int as lines, count(distinct order_no) filter (where return_of is null)::int as orders,
            coalesce(sum(qty * unit_price * (1 - discount_pct / 100)), 0) as total,
            (select coalesce(sum(owed), 0) from (${owedSales(sql`s.date = ${day}`)}) o) as unpaid
     from sales where date = ${day}
@@ -150,7 +185,7 @@ export async function getCustomers() {
     lines: number; spent: number; last_order: string | null; unpaid: number;
   }[]>`
     select c.id, c.name, c.phone, c.city, c.type, c.notes,
-           count(s.id)::int as lines,
+           count(s.id) filter (where s.return_of is null)::int as lines,
            coalesce(sum(s.qty * s.unit_price * (1 - s.discount_pct / 100)), 0) as spent,
            max(s.date) as last_order,
            coalesce(max(o.owed), 0) as unpaid
@@ -158,6 +193,109 @@ export async function getCustomers() {
     left join (select customer_id, sum(owed) as owed from (${owedSales()}) x group by 1) o on o.customer_id = c.id
     group by c.id order by c.name
   `;
+}
+
+export type SaleLine = {
+  id: number; product_id: number; sku: string; product: string; qty: number; unit: string; alt: boolean;
+  unit_price: number; discount_pct: number; total: number;
+  /** How much of this line has been given back already, in its own unit. */
+  returned: number;
+  cogs?: number;
+};
+
+export type Sale = {
+  no: string; date: string; customer_id: number | null; customer: string | null; phone: string | null;
+  ice: string | null; address: string | null; channel: string | null; payment: string | null; paid: boolean;
+  created_by: string | null; created_by_id: number | null; created_at: Date;
+  lines: SaleLine[]; total: number; received: number; owed: number;
+  payments: { id: number; date: string; amount: number; payment: string | null; by: string | null }[];
+  /** Credit notes made against this sale. */
+  returns: { no: string; date: string; total: number }[];
+  /** Set on a credit note: the sale it gives back. */
+  return_of_no: string | null;
+  /** Set when the sale came from an order to prepare. */
+  order: { id: number; no: string } | null;
+  invoice: { no: string; date: string; customer_name: string | null; customer_ice: string | null; customer_address: string | null } | null;
+};
+
+/** One sale or credit note with everything its page, receipt and invoice need. */
+export async function getSale(no: string): Promise<Sale | null> {
+  const user = await requireUser();
+  const admin = user.role === "admin";
+  const lines = await sql<(SaleLine & {
+    date: string; customer_id: number | null; channel: string | null; payment: string | null; paid: boolean;
+    created_by: string | null; created_by_id: number | null; created_at: Date; return_of_no: string | null;
+  })[]>`
+    select s.id, s.product_id, p.sku, p.name as product, s.qty, s.unit, s.factor <> 1 or s.unit <> p.unit as alt,
+           s.unit_price, s.discount_pct, s.qty * s.unit_price * (1 - s.discount_pct / 100) as total,
+           coalesce((select -sum(r.qty) from sales r where r.return_of = s.id), 0) as returned,
+           s.date, s.customer_id, s.channel, s.payment, s.paid, u.name as created_by, s.created_by as created_by_id,
+           s.created_at, ro.order_no as return_of_no
+           ${admin ? sql`, s.qty * s.unit_cost as cogs` : sql``}
+    from sales s
+    join products p on p.id = s.product_id
+    left join users u on u.id = s.created_by
+    left join sales ro on ro.id = s.return_of
+    where s.order_no = ${no}
+    order by s.id
+  `;
+  if (!lines.length) return null;
+  const first = lines[0];
+
+  const [customer, payments, returns, order, invoice] = await Promise.all([
+    first.customer_id
+      ? sql<{ name: string; phone: string | null; ice: string | null; address: string | null }[]>`
+          select name, phone, ice, address from customers where id = ${first.customer_id}`.then((r) => r[0])
+      : null,
+    sql<Sale["payments"]>`
+      select sp.id, sp.date, sp.amount, sp.payment, u.name as by
+      from sale_payments sp left join users u on u.id = sp.created_by
+      where sp.order_no = ${no} order by sp.date, sp.id
+    `,
+    sql<Sale["returns"]>`
+      select r.order_no as no, min(r.date) as date, sum(r.qty * r.unit_price * (1 - r.discount_pct / 100)) as total
+      from sales r join sales s on s.id = r.return_of
+      where s.order_no = ${no} group by r.order_no order by 2, 1
+    `,
+    sql<{ id: number; no: string }[]>`select id, no from orders where sale_no = ${no}`.then((r) => r[0] ?? null),
+    sql<NonNullable<Sale["invoice"]>[]>`
+      select no, date, customer_name, customer_ice, customer_address from invoices where order_no = ${no}
+    `.then((r) => r[0] ?? null),
+  ]);
+
+  const total = lines.reduce((s, l) => s + l.total, 0);
+  const received = payments.reduce((s, p) => s + p.amount, 0);
+  const paid = lines.every((l) => l.paid);
+  return {
+    no, date: first.date, customer_id: first.customer_id, customer: customer?.name ?? null, phone: customer?.phone ?? null,
+    ice: customer?.ice ?? null, address: customer?.address ?? null, channel: first.channel, payment: first.payment, paid,
+    created_by: first.created_by, created_by_id: first.created_by_id, created_at: first.created_at,
+    lines: lines.map(({ id, product_id, sku, product, qty, unit, alt, unit_price, discount_pct, total, returned, cogs }) =>
+      ({ id, product_id, sku, product, qty, unit, alt, unit_price, discount_pct, total, returned, ...(admin ? { cogs } : {}) })),
+    total, received, owed: paid ? 0 : Math.max(total - received, 0),
+    payments, returns, return_of_no: first.return_of_no, order, invoice,
+  };
+}
+
+/** A customer, with every sale they made (newest first) and what each still owes. */
+export async function getCustomer(id: number) {
+  await requireUser();
+  const [c] = await sql<{
+    id: number; name: string; phone: string | null; city: string | null; type: string | null; notes: string | null;
+    ice: string | null; address: string | null;
+  }[]>`select id, name, phone, city, type, notes, ice, address from customers where id = ${id}`;
+  if (!c) return null;
+  const sales = await sql<{ no: string; date: string; total: number; paid: boolean; owed: number; is_return: boolean; items: string }[]>`
+    select s.order_no as no, min(s.date) as date, sum(s.qty * s.unit_price * (1 - s.discount_pct / 100)) as total,
+           bool_and(s.paid) as paid, coalesce(max(o.owed), 0) as owed, bool_or(s.return_of is not null) as is_return,
+           string_agg(p.name, ', ' order by s.id) as items
+    from sales s
+    join products p on p.id = s.product_id
+    left join (${owedSales(sql`s.customer_id = ${id}`)}) o on o.order_no = s.order_no
+    where s.customer_id = ${id}
+    group by s.order_no order by 2 desc, 1 desc
+  `;
+  return { ...c, sales };
 }
 
 /* ── orders to prepare ────────────────────────────────────────────── */
@@ -317,15 +455,20 @@ export async function getCash(month: string) {
     from cash_movements where date between ${from} and ${to}
     order by date desc, id desc
   `;
-  // Every day of the month that had cash sales or a till count.
+  // Cash that came in per day: sales paid in one go (refunds net out as
+  // negative lines), plus deposits and payments on account on the day they
+  // were received. A sale paid in several goes counts only through its payments.
   const days = await sql<{ date: string; cash_sales: number; counted: number | null; count_id: number | null; notes: string | null }[]>`
-    with d as (
-      select date from sales where date between ${from} and ${to} and payment = 'Cash' and paid
-      union select date from cash_counts where date between ${from} and ${to}
-    )
-    select d.date,
-           coalesce((select sum(qty * unit_price * (1 - discount_pct / 100)) from sales s
-                     where s.date = d.date and s.payment = 'Cash' and s.paid), 0) as cash_sales,
+    with c as (
+      select s.date, s.qty * s.unit_price * (1 - s.discount_pct / 100) as amount
+      from sales s
+      where s.date between ${from} and ${to} and s.payment = 'Cash' and s.paid
+        and not exists (select 1 from sale_payments sp where sp.order_no = s.order_no)
+      union all
+      select date, amount from sale_payments where date between ${from} and ${to} and payment = 'Cash'
+    ),
+    d as (select date from c union select date from cash_counts where date between ${from} and ${to})
+    select d.date, coalesce((select sum(amount) from c where c.date = d.date), 0) as cash_sales,
            cc.counted, cc.id as count_id, cc.notes
     from d left join cash_counts cc on cc.date = d.date
     order by d.date desc
@@ -340,7 +483,7 @@ export async function getDashboard(year: number) {
   const from = `${year}-01-01`;
   const to = `${year}-12-31`;
 
-  const months = await sql<{ m: number; revenue: number; cogs: number; items: number; expenses: number; payroll: number }[]>`
+  const months = await sql<{ m: number; revenue: number; cogs: number; items: number; expenses: number; payroll: number; losses: number }[]>`
     with m as (select generate_series(1, 12) as m),
     s as (select extract(month from date)::int as m,
                  sum(qty * unit_price * (1 - discount_pct / 100)) as revenue,
@@ -349,10 +492,13 @@ export async function getDashboard(year: number) {
     e as (select extract(month from date)::int as m, sum(amount) as amount
           from expenses where date between ${from} and ${to} group by 1),
     p as (select extract(month from date)::int as m, sum(amount) as amount
-          from payroll where date between ${from} and ${to} group by 1)
+          from payroll where date between ${from} and ${to} group by 1),
+    -- Stock lost (or found, on a count) at its cost: positive = a loss.
+    a as (select extract(month from date)::int as m, -sum(qty * unit_cost) as amount
+          from stock_adjustments where date between ${from} and ${to} group by 1)
     select m.m, coalesce(s.revenue, 0) as revenue, coalesce(s.cogs, 0) as cogs, coalesce(s.items, 0) as items,
-           coalesce(e.amount, 0) as expenses, coalesce(p.amount, 0) as payroll
-    from m left join s using (m) left join e using (m) left join p using (m)
+           coalesce(e.amount, 0) as expenses, coalesce(p.amount, 0) as payroll, coalesce(a.amount, 0) as losses
+    from m left join s using (m) left join e using (m) left join p using (m) left join a using (m)
     order by m.m
   `;
 
@@ -380,10 +526,10 @@ export async function getDashboard(year: number) {
   // "Right now" figures, independent of the year.
   const [now] = await sql<{ stock_value: number; to_reorder: number; customers_owe: number; owe_suppliers: number }[]>`
     select
-      (select coalesce(sum(greatest(p.opening_stock + coalesce(pu.q, 0) - coalesce(s.q, 0), 0) * p.unit_cost), 0)
+      (select coalesce(sum(greatest(${inStock}, 0) * p.unit_cost), 0)
          from products p ${stockJoin}) as stock_value,
       (select count(*)::int from products p ${stockJoin}
-         where p.active and p.opening_stock + coalesce(pu.q, 0) - coalesce(s.q, 0) <= p.reorder_level) as to_reorder,
+         where p.active and ${inStock} <= p.reorder_level) as to_reorder,
       (select coalesce(sum(owed), 0) from (${owedSales()}) o) as customers_owe,
       (select coalesce(sum(qty * unit_cost), 0) from purchases where not paid) as owe_suppliers
   `;
@@ -403,4 +549,22 @@ export async function getUsers() {
   return sql<{ id: number; name: string; email: string; role: "admin" | "staff"; active: boolean; created_at: Date }[]>`
     select id, name, email, role, active, created_at from users order by active desc, role, name
   `;
+}
+
+/* ── business details ─────────────────────────────────────────────── */
+
+export const businessKeys = [
+  "business_name", "legal_name", "address", "city", "phone", "email",
+  "ice", "if_no", "rc", "patente", "cnss", "vat_rate", "receipt_footer", "invoice_footer",
+] as const;
+export type BusinessKey = (typeof businessKeys)[number];
+export type Business = Record<BusinessKey, string>;
+
+/** Printed on receipts and invoices, so staff read them too; nothing here is private. */
+export async function getBusiness(): Promise<Business> {
+  await requireUser();
+  const rows = await sql<{ key: string; value: string }[]>`select key, value from settings`;
+  const out = Object.fromEntries(businessKeys.map((k) => [k, ""])) as Business;
+  for (const r of rows) if ((businessKeys as readonly string[]).includes(r.key)) out[r.key as BusinessKey] = r.value;
+  return out;
 }

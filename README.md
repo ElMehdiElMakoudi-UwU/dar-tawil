@@ -61,17 +61,24 @@ server. To take submissions properly later, replace the two links in
 
 A sign-in-only section that replaces the old `dar_tawil.xlsx` tracker: sales,
 stock, customers, purchases, expenses, staff & payroll, cash & bank, and a
-yearly dashboard. English only, never indexed, outside the locale redirect.
+yearly dashboard. French or Arabic (a cookie switch), never indexed, outside
+the locale redirect.
 
 Two roles:
 
 | | Staff | Admin |
 | --- | --- | --- |
 | Log sales, mark orders paid | ✓ | ✓ |
+| Take payments on what customers owe | ✓ | ✓ |
+| Print receipts, issue invoices | ✓ | ✓ |
+| Edit a sale | own, same day | any |
+| Record losses and stock counts | ✓ | ✓ |
 | See products, prices, stock; add customers | ✓ | ✓ |
 | Costs, margins, profit, stock value | — | ✓ |
 | Purchases, expenses, payroll, cash & bank, dashboard | — | ✓ |
+| Returns / credit notes, value of stock losses | — | ✓ |
 | Edit products, delete records, dropdown lists, user accounts | — | ✓ |
+| Business details, Excel export, full backup | — | ✓ |
 
 Staff never receive cost data at all — it isn't hidden in the page, it's never
 queried for them. Every page and every server action checks the role itself
@@ -101,6 +108,48 @@ A sale stores the product's cost at the moment it's sold, so changing a cost
 later doesn't rewrite past profit. Payroll payments count as a cost on the
 dashboard next to expenses, so salaries shouldn't also be logged as expenses.
 
+**Stock** is opening stock + purchases − sales + adjustments. Adjustments
+(*Pertes & inventaire*) record waste, breakage, tastings and own use, and
+physical counts: for a count you type what is on the shelf and the difference
+is recorded. Their value at cost shows as *Pertes* on the dashboard and comes
+off net profit.
+
+**Returns** are credit notes (`R00001`): sale lines with a negative quantity,
+each pointing at the line it gives back, at the original price and cost. So
+revenue, profit, stock, the till and customer totals all net out without any
+query knowing about returns. Items not fit to sell again are written off as
+*damaged* in the same step. Only paid sales can be returned.
+
+**Payments on account**: money received on a sale (from its page) or on a
+customer's balance (from the customer page, oldest sales first) is a
+`sale_payments` row on the day it came in, and a sale whose balance reaches
+zero is marked paid. The till count compares against cash taken that day,
+sales paid at once and payments received alike.
+
+**Editing a sale** keeps its number and date. It is refused once the sale is
+invoiced, has a return, or came from an order (edit the order instead).
+
+**Receipts and invoices** print from `/gestion/print/receipt|invoice/<no>`, in
+French. Invoices are numbered `F-2026-0001` with no gaps per year, can't be
+dated before the previous one, and can't be changed or deleted once issued:
+a mistake is corrected with a return and its own invoice. The house's legal
+details (ICE, IF, RC, patente, VAT rate…) are set under *Settings*. With a VAT
+rate above 0 the invoice breaks the (VAT-inclusive) prices into HT / TVA / TTC.
+
+**Export & backup** (admin): one Excel workbook per year for the accountant
+(`/gestion/export/xlsx?year=`), and a full JSON backup of the database
+(`/gestion/export/backup`, password hashes included — keep it safe). To load
+a backup into a fresh, migrated database:
+
+```bash
+npm run migrate
+npm run restore -- dar-tawil-backup-….json            # refuses if there is data
+npm run restore -- dar-tawil-backup-….json --replace  # overwrites it
+```
+
+This doesn't replace Coolify's scheduled database backups; it's the copy you
+keep off the server.
+
 ## Deploying to Coolify
 
 The repo ships a `Dockerfile` (multi-stage, Next.js standalone output, non-root
@@ -112,13 +161,13 @@ In Coolify:
    Repo `ElMehdiElMakoudi-UwU/dar-tawil`, branch `main`.
 2. **Build Pack: `Dockerfile`.** Base directory `/`, Dockerfile `/Dockerfile`.
 3. **Port: `3000`.**
-4. **Domain**: `https://dartawil.emsquare.ma`. Point that DNS A record at the
+4. **Domains**: `https://dartawil.ma,https://www.dartawil.ma`, and set **Direction** to redirect www → non-www. The A record for `dartawil.ma` (and the `www` CNAME) must point at the
    VPS *before* deploying, so Let's Encrypt can issue the certificate.
 5. **Environment variables** — add both and tick **Build Variable** on each:
 
    | Name | Value |
    | --- | --- |
-   | `NEXT_PUBLIC_SITE_URL` | `https://dartawil.emsquare.ma` |
+   | `NEXT_PUBLIC_SITE_URL` | `https://dartawil.ma` |
    | `SITE_INDEXABLE` | `false` for the client preview |
 
 6. **Health check**: path `/api/health`, port `3000`. Do not leave it on `/` —

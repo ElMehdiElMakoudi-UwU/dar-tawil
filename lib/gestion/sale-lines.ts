@@ -37,8 +37,11 @@ export async function insertSale(
   sale: {
     no?: string; day: string; customerId: number | null; channel: string | null;
     payment: string | null; paid: boolean; userId: number; lines: Line[];
+    /** Archived products that may still be used: the ones a sale being edited already had. */
+    keepArchived?: number[];
   },
 ) {
+  const keep = sale.keepArchived?.length ? sale.keepArchived : [0];
   const no = sale.no ?? (await tx<{ no: string }[]>`select 'O' || lpad(nextval('order_seq')::text, 5, '0') as no`)[0].no;
   for (const l of sale.lines) {
     const alt = l.alt === true;
@@ -51,7 +54,7 @@ export async function insertSale(
         select case when ${alt} then p.alt_unit else p.unit end as unit,
                case when ${alt} then p.alt_factor else 1 end as factor
       ) u
-      where p.id = ${l.productId} and p.active and u.unit is not null
+      where p.id = ${l.productId} and (p.active or p.id in ${tx(keep)}) and u.unit is not null
     `;
     if (inserted.count !== 1) {
       throw new InputError(alt ? "altGone" : "productGone");

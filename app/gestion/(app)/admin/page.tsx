@@ -18,10 +18,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/gestio
   const year = Number.isInteger(raw) && raw > 2000 && raw < 2100 ? raw : thisYear;
   const [d, lang, t] = await Promise.all([getDashboard(year), getLang(), getT()]);
 
-  const sum = (k: "revenue" | "cogs" | "expenses" | "payroll" | "items") => d.months.reduce((s, m) => s + m[k], 0);
+  const sum = (k: "revenue" | "cogs" | "expenses" | "payroll" | "items" | "losses") => d.months.reduce((s, m) => s + m[k], 0);
   const revenue = sum("revenue");
   const gross = revenue - sum("cogs");
-  const costs = sum("expenses") + sum("payroll");
+  const costs = sum("expenses") + sum("payroll") + sum("losses");
   const net = gross - costs;
   const items = sum("items");
 
@@ -42,11 +42,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/gestio
         </nav>
       </PageHeader>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
         <Stat label={t.common.revenueMad} value={mad(revenue)} />
         <Stat label={t.common.grossProfitMad} value={mad(gross)} note={fill(t.dash.marginNote, { pct: revenue ? pct(gross / revenue) : "—" })} />
         <Stat label={t.dash.expensesMad} value={mad(sum("expenses"))} />
         <Stat label={t.dash.payrollMad} value={mad(sum("payroll"))} />
+        <Stat label={t.dash.lossesMad} value={mad(sum("losses"))} tone={sum("losses") > 0 ? "bad" : undefined} />
         <Stat
           label={t.dash.netMad}
           value={mad(net)}
@@ -76,14 +77,15 @@ export default async function DashboardPage({ searchParams }: PageProps<"/gestio
                 <th className="num">{t.dash.grossProfit}</th>
                 <th className="num">{t.dash.expenses}</th>
                 <th className="num">{t.dash.payroll}</th>
+                <th className="num">{t.dash.losses}</th>
                 <th className="num">{t.dash.netProfit}</th>
                 <th className="num">{t.dash.items}</th>
               </tr>
             </thead>
             <tbody>
               {d.months.map((m) => {
-                const mNet = m.revenue - m.cogs - m.expenses - m.payroll;
-                const empty = !m.revenue && !m.expenses && !m.payroll;
+                const mNet = m.revenue - m.cogs - m.expenses - m.payroll - m.losses;
+                const empty = !m.revenue && !m.expenses && !m.payroll && !m.losses;
                 return (
                   <tr key={m.m} className={empty ? "g-muted" : ""}>
                     <td>{monthName(m.m, lang)}</td>
@@ -92,6 +94,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/gestio
                     <td className="num">{mad(m.revenue - m.cogs)}</td>
                     <td className="num">{mad(m.expenses)}</td>
                     <td className="num">{mad(m.payroll)}</td>
+                    <td className="num">{mad(m.losses)}</td>
                     <td className={`num font-medium ${mNet < 0 ? "g-neg" : ""}`}>{mad(mNet)}</td>
                     <td className="num">{qty(m.items)}</td>
                   </tr>
@@ -106,6 +109,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/gestio
                 <td className="num">{mad(gross)}</td>
                 <td className="num">{mad(sum("expenses"))}</td>
                 <td className="num">{mad(sum("payroll"))}</td>
+                <td className="num">{mad(sum("losses"))}</td>
                 <td className={`num ${net < 0 ? "g-neg" : ""}`}>{mad(net)}</td>
                 <td className="num">{qty(items)}</td>
               </tr>

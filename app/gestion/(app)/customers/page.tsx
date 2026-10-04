@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireUser } from "@/lib/gestion/auth";
 import { dateLabel, mad } from "@/lib/gestion/format";
 import { fill } from "@/lib/gestion/i18n";
@@ -47,7 +48,9 @@ export default async function CustomersPage() {
               {customers.map((c) => (
                 <tr key={c.id}>
                   <td className="font-medium">
-                    {c.name}
+                    <Link href={`/gestion/customers/${c.id}`} className="underline decoration-[var(--g-line)] underline-offset-4">
+                      {c.name}
+                    </Link>
                     {c.notes && <div className="g-muted text-xs font-normal">{c.notes}</div>}
                   </td>
                   <td>

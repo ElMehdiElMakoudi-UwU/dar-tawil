@@ -28,6 +28,7 @@ export default async function AppLayout({ children }: LayoutProps<"/gestion">) {
       icon: "tag",
       items: [
         { href: "/gestion/products", label: t.nav.products, icon: "package" },
+        { href: "/gestion/stock", label: t.nav.stock, icon: "clipboard" },
         { href: "/gestion/customers", label: t.nav.customers, icon: "users" },
       ],
     },
@@ -51,6 +52,7 @@ export default async function AppLayout({ children }: LayoutProps<"/gestion">) {
             items: [
               { href: "/gestion/admin/payroll", label: t.nav.payroll, icon: "briefcase" },
               { href: "/gestion/admin/settings", label: t.nav.settings, icon: "userCog" },
+              { href: "/gestion/admin/export", label: t.nav.export, icon: "download" },
             ],
           },
         ]

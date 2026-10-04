@@ -19,7 +19,7 @@ type Line = { productId: number; qty: string; unitPrice: string; discount: strin
  * Chocolates stocked by the piece and also sold by weight → the stock unit (1 kg = 80 pc).
  */
 const pieceIsAlt = (p: Product) => !!p.alt_unit && (p.alt_factor ?? 1) < 1;
-type Receipt = { message: string; total: number; tendered: number | null };
+type Receipt = { message: string; total: number; tendered: number | null; no?: string };
 
 const num = (s: string) => Number(s.replace(",", ".")) || 0;
 // Filter keys, not labels: a real category could be called "All".
@@ -81,7 +81,7 @@ export function Till({
   // leaves everything in place so nothing has to be keyed in again.
   useEffect(() => {
     if (state?.ok && charged.current) {
-      setReceipt({ message: state.ok, ...charged.current });
+      setReceipt({ message: state.ok, ...charged.current, no: state.ref });
       setLines([]);
       setOpen(null);
       setCustomer("");
@@ -217,6 +217,11 @@ export function Till({
                 {fill(t.pos.received, { amount: mad(receipt.tendered) })} · {t.pos.change}{" "}
                 <span className="font-medium text-[var(--color-ivoire)] tabular-nums">{mad(receipt.tendered - receipt.total)}</span>
               </p>
+            )}
+            {receipt.no && (
+              <a href={`/gestion/print/receipt/${receipt.no}?print=1`} target="_blank" rel="noopener" className="g-btn g-btn-ghost mt-2 w-full">
+                {t.sale.printReceipt}
+              </a>
             )}
             <button type="button" className="g-btn mt-2 w-full" onClick={() => (setReceipt(null), searchRef.current?.focus())}>
               {t.pos.nextCustomer}

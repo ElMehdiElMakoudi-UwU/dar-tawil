@@ -24,11 +24,12 @@ try {
   await sql.begin(async (tx) => {
     if (reset || wipe) {
       await tx.unsafe(`
-        truncate sale_payments, order_lines, orders, sales, purchases, expenses,
+        truncate sale_payments, invoices, stock_adjustments, order_lines, orders, sales, purchases, expenses,
                  payroll, employees, cash_movements, cash_counts, customers, products
                  restart identity cascade;
         alter sequence order_seq restart;
         alter sequence prep_order_seq restart;
+        alter sequence return_seq restart;
       `);
       console.log("business data wiped (users and lists kept)");
     }

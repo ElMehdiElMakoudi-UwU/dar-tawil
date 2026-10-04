@@ -18,7 +18,7 @@ COPY . .
 # Both are baked in at build time: the pages are statically generated, so a
 # runtime-only variable would never reach them. In Coolify, tick "Build
 # Variable" on each of these.
-ARG NEXT_PUBLIC_SITE_URL=https://dartawil.emsquare.ma
+ARG NEXT_PUBLIC_SITE_URL=https://dartawil.ma
 ARG SITE_INDEXABLE=false
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV SITE_INDEXABLE=$SITE_INDEXABLE
@@ -46,6 +46,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/db ./db
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate.mjs ./scripts/migrate.mjs
 # Demo data, loaded by hand from the container terminal: node scripts/seed-demo.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/seed-demo.mjs ./scripts/seed-demo.mjs
+# Restores a backup downloaded from /gestion, by hand: node scripts/restore-backup.mjs <file> [--replace]
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/restore-backup.mjs ./scripts/restore-backup.mjs
 
 USER nextjs
 EXPOSE 3000
