@@ -28,7 +28,7 @@ export async function getListRows() {
 /* ── products & stock ─────────────────────────────────────────────── */
 
 const stockJoin = sql`
-  left join (select product_id, sum(qty) as q from purchases group by 1) pu on pu.product_id = p.id
+  left join (select product_id, sum(qty) as q from purchase_lines group by 1) pu on pu.product_id = p.id
   left join (select product_id, sum(qty * factor) as q, sum(qty * unit_price * (1 - discount_pct / 100)) as rev,
                     sum(qty * unit_cost) as cogs
              from sales group by 1) s on s.product_id = p.id
@@ -229,19 +229,36 @@ export async function getOrder(id: number) {
 
 /* ── admin: purchases, expenses ───────────────────────────────────── */
 
+export type PurchaseLine = { productId: number; product: string; sku: string; unit: string; qty: number; unitCost: number };
+export type Purchase = {
+  id: number; date: string; supplier: string | null; ref: string | null; paid: boolean;
+  notes: string | null; total: number; lines: PurchaseLine[];
+};
+
+const purchaseCols = sql`
+  pu.id, pu.date, pu.supplier, pu.ref, pu.paid, pu.notes,
+  (select coalesce(sum(l.qty * l.unit_cost), 0) from purchase_lines l where l.purchase_id = pu.id) as total,
+  (select coalesce(json_agg(json_build_object(
+            'productId', p.id, 'product', p.name, 'sku', p.sku, 'unit', p.unit, 'qty', l.qty, 'unitCost', l.unit_cost
+          ) order by l.position, l.id), '[]')
+     from purchase_lines l join products p on p.id = l.product_id where l.purchase_id = pu.id) as lines
+`;
+
 export async function getPurchases(month: string) {
   await requireAdmin();
   const { from, to } = monthRange(month);
-  return sql<{
-    id: number; date: string; supplier: string | null; sku: string; product: string;
-    qty: number; unit_cost: number; total: number; paid: boolean; notes: string | null;
-  }[]>`
-    select pu.id, pu.date, pu.supplier, p.sku, p.name as product, pu.qty, pu.unit_cost,
-           pu.qty * pu.unit_cost as total, pu.paid, pu.notes
-    from purchases pu join products p on p.id = pu.product_id
+  return sql<Purchase[]>`
+    select ${purchaseCols} from purchases pu
     where pu.date between ${from} and ${to}
     order by pu.date desc, pu.id desc
   `;
+}
+
+export async function getPurchase(id: number) {
+  await requireAdmin();
+  if (!Number.isInteger(id) || id <= 0) return null;
+  const [pu] = await sql<Purchase[]>`select ${purchaseCols} from purchases pu where pu.id = ${id}`;
+  return pu ?? null;
 }
 
 export async function getSuppliers() {
@@ -385,7 +402,8 @@ export async function getDashboard(year: number) {
       (select count(*)::int from products p ${stockJoin}
          where p.active and p.opening_stock + coalesce(pu.q, 0) - coalesce(s.q, 0) <= p.reorder_level) as to_reorder,
       (select coalesce(sum(owed), 0) from (${owedSales()}) o) as customers_owe,
-      (select coalesce(sum(qty * unit_cost), 0) from purchases where not paid) as owe_suppliers
+      (select coalesce(sum(l.qty * l.unit_cost), 0) from purchase_lines l join purchases pu on pu.id = l.purchase_id
+         where not pu.paid) as owe_suppliers
   `;
 
   const years = await sql<{ y: number }[]>`

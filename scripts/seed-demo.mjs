@@ -24,7 +24,7 @@ try {
   await sql.begin(async (tx) => {
     if (reset || wipe) {
       await tx.unsafe(`
-        truncate sale_payments, order_lines, orders, sales, purchases, expenses,
+        truncate sale_payments, order_lines, orders, sales, purchase_lines, purchases, expenses,
                  payroll, employees, cash_movements, cash_counts, customers, products
                  restart identity cascade;
         alter sequence order_seq restart;

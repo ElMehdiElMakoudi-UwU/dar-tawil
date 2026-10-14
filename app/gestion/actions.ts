@@ -394,25 +394,63 @@ export async function deleteCustomer(_: FormState, fd: FormData): Promise<FormSt
 
 /* ── purchases ────────────────────────────────────────────────────── */
 
-export async function createPurchase(_: FormState, fd: FormData): Promise<FormState> {
+type PurchaseLine = { productId: number; qty: number; unitCost: number };
+
+/** The `lines` JSON field sent by the purchase form, checked. At least one line. */
+function parsePurchaseLines(fd: FormData): PurchaseLine[] {
+  let lines: PurchaseLine[];
+  try {
+    lines = JSON.parse(String(fd.get("lines") ?? "[]"));
+  } catch {
+    throw new InputError("readProducts");
+  }
+  if (!Array.isArray(lines)) throw new InputError("readProducts");
+  lines = lines.filter((l) => l && l.productId);
+  if (!lines.length) throw new InputError("addProduct");
+  for (const l of lines) {
+    if (!Number.isInteger(l.productId)) throw new InputError("pickProduct");
+    if (!(l.qty > 0)) throw new InputError("qtyPositive");
+    if (!(l.unitCost >= 0)) throw new InputError("costNegative");
+  }
+  return lines;
+}
+
+/** One supplier delivery, new or edited. Its lines are replaced as a whole. */
+export async function savePurchase(_: FormState, fd: FormData): Promise<FormState> {
   const user = await requireAdmin();
-  return handle(async (t) => {
+  const purchaseId = Number(fd.get("id")) || null;
+  const result = await handle(async (t) => {
     const values = {
       date: date(fd, "date", t.field.date),
       supplier: text(fd, "supplier"),
-      product_id: id(fd, "product_id"),
-      qty: number(fd, "qty", { required: true, min: 0.01, label: t.field.quantity })!,
-      unit_cost: number(fd, "unit_cost", { required: true, min: 0, label: t.field.unitCost })!,
+      ref: text(fd, "ref"),
       paid: checked(fd, "paid"),
       notes: text(fd, "notes"),
-      created_by: user.id,
     };
-    await sql`insert into purchases ${sql(values)}`;
-    if (checked(fd, "update_cost")) {
-      await sql`update products set unit_cost = ${values.unit_cost} where id = ${values.product_id}`;
-    }
+    const lines = parsePurchaseLines(fd);
+    await sql.begin(async (tx) => {
+      let id = purchaseId;
+      if (id) {
+        const updated = await tx`update purchases set ${tx(values)} where id = ${id}`;
+        if (updated.count !== 1) throw new InputError("missing");
+        await tx`delete from purchase_lines where purchase_id = ${id}`;
+      } else {
+        [{ id }] = await tx<{ id: number }[]>`insert into purchases ${tx({ ...values, created_by: user.id })} returning id`;
+      }
+      await tx`
+        insert into purchase_lines ${tx(
+          lines.map((l, i) => ({ purchase_id: id, product_id: l.productId, qty: l.qty, unit_cost: l.unitCost, position: i })),
+        )}
+      `;
+      if (checked(fd, "update_cost")) {
+        // The same product twice: its last line wins.
+        for (const l of lines) await tx`update products set unit_cost = ${l.unitCost} where id = ${l.productId}`;
+      }
+    });
     refresh();
   });
+  if (result?.error || !purchaseId) return result;
+  redirect("/gestion/admin/purchases");
 }
 
 export async function setPurchasePaid(_: FormState, fd: FormData): Promise<FormState> {

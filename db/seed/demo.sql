@@ -167,25 +167,33 @@ begin
 end $$;
 
 -- ── Purchases: monthly restock, a bit more than what sold ───────────
-insert into purchases (date, supplier, product_id, qty, unit_cost, paid, notes)
-select m.month::date,
+-- One delivery per supplier per month, with a line per product.
+create temp table restock on commit drop as
+select m.month::date as date,
        case
          when p.sku in ('DAT-MAJ', 'DAT-BOU') then 'Coopérative Tafilalet, Erfoud'
          when p.category = 'Dates' then 'Palmeraie de Zagora'
          when p.category = 'Chocolate' then 'Atelier (couverture Callebaut)'
          when p.category = 'Gift boxes' then 'Emballages du Nord, Tanger'
          else 'Imprimerie Al Andalous'
-       end,
-       p.id,
-       ceil(m.used * 1.1),
-       p.unit_cost,
-       m.month < date_trunc('month', current_date),  -- this month's invoices not settled yet
-       null
+       end as supplier,
+       p.id as product_id,
+       ceil(m.used * 1.1) as qty,
+       p.unit_cost
 from (
   select product_id, date_trunc('month', date) as month, sum(qty * factor) as used
   from sales group by 1, 2
 ) m
 join products p on p.id = m.product_id;
+
+insert into purchases (date, supplier, ref, paid)
+select date, supplier, 'F-' || to_char(date, 'YYMM') || '-' || row_number() over (partition by date order by supplier),
+       date < date_trunc('month', current_date)  -- this month's invoices not settled yet
+from restock group by date, supplier;
+
+insert into purchase_lines (purchase_id, product_id, qty, unit_cost, position)
+select pu.id, r.product_id, r.qty, r.unit_cost, row_number() over (partition by pu.id order by r.product_id) - 1
+from restock r join purchases pu on pu.date = r.date and pu.supplier = r.supplier;
 
 -- ── Expenses ────────────────────────────────────────────────────────
 insert into expenses (date, category, description, amount, payment)
