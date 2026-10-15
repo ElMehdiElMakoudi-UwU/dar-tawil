@@ -14,6 +14,20 @@ if (!url) {
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "db", "migrations");
 const sql = postgres(url, { max: 1, onnotice: () => {} });
 
+// The app container can come up while Postgres is still starting (a server
+// reboot, or both redeployed together). Wait for it instead of crashing.
+const TRANSIENT = new Set(["57P03", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN", "CONNECT_TIMEOUT"]);
+for (let attempt = 1; ; attempt++) {
+  try {
+    await sql`select 1`;
+    break;
+  } catch (err) {
+    if (!TRANSIENT.has(err.code) || attempt >= 30) throw err;
+    console.log(`database not ready (${err.code}), retrying in 2s (${attempt}/30)`);
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+}
+
 try {
   await sql`create table if not exists schema_migrations (name text primary key, applied_at timestamptz not null default now())`;
   const applied = new Set((await sql`select name from schema_migrations`).map((r) => r.name));
