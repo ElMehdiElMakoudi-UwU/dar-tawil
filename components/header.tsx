@@ -54,6 +54,11 @@ export function Header({
           : "border-b border-transparent"
       }`}
     >
+      {/* Gold hairline that fills as the page is read. */}
+      <span
+        aria-hidden
+        className="scroll-line pointer-events-none absolute inset-x-0 bottom-[-1px] h-px origin-left bg-or rtl:origin-right"
+      />
       <div className="mx-auto flex h-[4.5rem] max-w-[82rem] items-center justify-between gap-6 px-5 md:h-20 md:px-10">
         <Link
           href={`/${lang}`}
@@ -70,7 +75,7 @@ export function Header({
               key={item.href}
               href={item.href}
               aria-current={isCurrent(item.href) ? "page" : undefined}
-              className={`relative py-1 text-[0.8rem] font-medium uppercase tracking-[0.16em] transition-colors ${
+              className={`group relative py-1 text-[0.8rem] font-medium uppercase tracking-[0.16em] transition-colors ${
                 isCurrent(item.href)
                   ? "text-or-clair"
                   : "text-ivoire/70 hover:text-or-clair"
@@ -78,8 +83,8 @@ export function Header({
             >
               {item.label}
               <span
-                className={`absolute -bottom-0.5 left-0 h-px w-full origin-left bg-or transition-transform duration-500 ${
-                  isCurrent(item.href) ? "scale-x-100" : "scale-x-0"
+                className={`absolute -bottom-0.5 start-0 h-px w-full origin-left bg-or transition-transform duration-500 ease-[var(--ease-lantern)] rtl:origin-right ${
+                  isCurrent(item.href) ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
                 }`}
               />
             </Link>

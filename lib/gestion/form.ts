@@ -3,7 +3,7 @@ import { fill, type Dict, type ErrKey } from "./i18n";
 import { getT } from "./lang";
 
 /** What every form action returns to <ActionForm>. */
-export type FormState = { error?: string; ok?: string; at?: number } | undefined;
+export type FormState = { error?: string; ok?: string; at?: number; ref?: string } | undefined;
 
 /** A message for the form, as a key into the dictionary's `err` section; translated in handle(). */
 export class InputError extends Error {

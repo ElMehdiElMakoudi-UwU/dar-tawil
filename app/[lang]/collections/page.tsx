@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { Bonbon } from "@/components/bonbon";
-import { Photo } from "@/components/photo";
-import { CtaPrimary, Eyebrow, Lede, PageHeader, Section, Title } from "@/components/ui";
-import { flavours } from "@/lib/flavours";
+import { connection } from "next/server";
+import { CartProvider } from "@/components/cart";
+import { StarRule } from "@/components/ornament";
+import { PackCard } from "@/components/pack-card";
+import { CtaPrimary, Lede, PageHeader, Section, Title } from "@/components/ui";
+import { getCatalogSections } from "@/lib/catalog";
+import type { Locale } from "@/lib/locales";
 import { whatsappLink } from "@/lib/site";
-import { photos } from "@/lib/photos";
 import { getDictionary } from "../dictionaries";
 
 export async function generateMetadata({
@@ -20,145 +22,102 @@ export default async function CollectionsPage({
 }: PageProps<"/[lang]/collections">) {
   const { lang } = await params;
   const t = await getDictionary(lang);
+  const c = t.collectionsPage;
+  // Rendered per request: the packs are edited live in /gestion, and the
+  // database is not reachable at build time.
+  await connection();
+  const sections = await getCatalogSections(lang as Locale);
+
+  const labels = {
+    featuredBadge: c.featuredBadge,
+    priceFormat: c.priceFormat,
+    priceOnRequest: c.priceOnRequest,
+    sizeLabel: c.sizeLabel,
+    addToCart: c.addToCart,
+    added: c.added,
+    quantity: c.cart.quantity,
+    decrease: c.cart.decrease,
+    increase: c.cart.increase,
+    slider: c.slider,
+  };
+
+  const cartLabels = {
+    ...c.cart,
+    priceFormat: c.priceFormat,
+    priceOnRequest: c.priceOnRequest,
+  };
 
   return (
-    <>
-      <PageHeader
-        eyebrow={t.collectionsPage.eyebrow}
-        title={t.collectionsPage.title}
-        lede={t.collectionsPage.lede}
-      />
+    <CartProvider labels={cartLabels}>
+      <PageHeader eyebrow={c.eyebrow} title={c.title} lede={c.lede} />
 
-      <Section>
-        {/* Alternating arches: each product line gets one, facing the other way. */}
-        <div className="space-y-24 md:space-y-32">
-          {t.collections.items.map((item, i) => (
-            <article
-              key={item.slug}
-              data-reveal
-              className={`grid items-center gap-10 md:gap-16 ${
-                i % 2 === 1
-                  ? "md:grid-cols-[1fr_0.62fr] md:[&>figure]:order-2"
-                  : "md:grid-cols-[0.62fr_1fr]"
-              }`}
-            >
-              <Photo
-                src={photos.range[item.slug] || undefined}
-                alt={item.photo}
-                caption={item.photo}
-                pending={t.ui.photoPending}
-                className="aspect-[3/4] w-full"
-              />
+      <Section className="!pt-12 md:!pt-16">
+        {/* Jump links to each category. */}
+        <nav aria-label={c.categories.label} className="-mx-5 overflow-x-auto px-5 md:mx-0 md:px-0">
+          <ul className="flex gap-2.5">
+            {sections.map(({ category }, i) => (
+              <li key={category} data-reveal data-reveal-delay={i * 90} className="shrink-0">
+                <a
+                  href={`#${category}`}
+                  className="cta-ghost relative inline-flex min-h-11 items-center border border-or/40 px-5 text-[0.78rem] uppercase tracking-[0.16em] text-ivoire/80 transition-colors duration-500 hover:border-or hover:text-or-profond"
+                >
+                  {c.categories[category]}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
-              <div>
-                <p className="eyebrow">{item.line}</p>
-                <h2 className="monument mt-5 text-[clamp(1.9rem,3.6vw,2.9rem)] text-ivoire">
-                  {item.name}
+        <div className="mt-16 space-y-24 md:mt-20 md:space-y-32">
+          {sections.map(({ category, packs }, s) => (
+            <section key={category} id={category} aria-labelledby={`${category}-title`} className="scroll-mt-28">
+              <div data-reveal className="cat-head relative flex items-baseline gap-5 pb-5">
+                <h2
+                  id={`${category}-title`}
+                  className="monument text-[clamp(1.5rem,2.8vw,2.1rem)] text-ivoire"
+                >
+                  {c.categories[category]}
                 </h2>
-
-                <div className="mt-8 border-t border-or/22 pt-6">
-                  <p className="text-[0.72rem] uppercase tracking-[0.2em] text-or/75">
-                    {t.collections.composition}
-                  </p>
-                  <p className="mt-3 max-w-[46ch] text-[1rem] leading-[1.8] text-ivoire/70">
-                    {item.composition}
-                  </p>
-                </div>
-
-                {item.slug === "dattes" ? (
-                  <div className="mt-8 border-t border-or/22 pt-6">
-                    <p className="text-[0.72rem] uppercase tracking-[0.2em] text-or/75">
-                      {t.collectionsPage.varieties.label}
-                    </p>
-                    <ul className="mt-4 flex flex-wrap gap-2.5">
-                      {t.collectionsPage.varieties.names.map((name) => (
-                        <li
-                          key={name}
-                          className="border border-or/35 px-4 py-2 font-display text-[1rem] text-ivoire/85"
-                        >
-                          {name}
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="mt-4 max-w-[46ch] text-[0.85rem] leading-[1.7] text-ivoire/50">
-                      {t.collectionsPage.varieties.note}
-                    </p>
-                  </div>
-                ) : null}
-
-                {item.slug === "chocolats" ? (
-                  <div className="mt-8 border-t border-or/22 pt-6">
-                    <p className="text-[0.72rem] uppercase tracking-[0.2em] text-or/75">
-                      {t.collectionsPage.flavoursLabel}
-                    </p>
-                    <ul className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
-                      {flavours.map((flavour) => {
-                        const copy = t.flavours.items[flavour.slug];
-                        return (
-                          <li key={flavour.slug} className="flex items-center gap-3">
-                            <Bonbon flavour={flavour} className="h-auto w-9 shrink-0" />
-                            <span>
-                              <span className="block font-display text-[0.98rem] leading-tight text-ivoire/85">
-                                {copy.name}
-                              </span>
-                              <span className="mt-0.5 block text-[0.75rem] leading-snug text-ivoire/50">
-                                {copy.note}
-                              </span>
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ) : null}
-
-                <p className="mt-7 max-w-[44ch] font-display text-[1.1rem] leading-snug text-or-clair/80">
-                  {item.note}
-                </p>
+                <span className="font-display text-sm tracking-[0.2em] text-or/70">
+                  {String(packs.length).padStart(2, "0")}
+                </span>
+                {/* The rule draws itself out from the title. */}
+                <span aria-hidden className="cat-rule absolute inset-x-0 bottom-0 h-px" />
               </div>
-            </article>
+
+              <div className="mt-10 grid gap-x-8 gap-y-16 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-10">
+                {packs.map((pack, i) => (
+                  <PackCard
+                    key={pack.id}
+                    name={pack.name}
+                    description={pack.description}
+                    featured={pack.featured}
+                    variants={pack.variants}
+                    labels={labels}
+                    priority={s === 0 && i < 3}
+                    index={i}
+                  />
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       </Section>
 
       <Section className="border-t border-or/15">
-        <div data-reveal className="max-w-[46ch]">
-          <Eyebrow>{t.collectionsPage.compose.eyebrow}</Eyebrow>
-          <Title className="mt-5">{t.collectionsPage.compose.title}</Title>
-        </div>
-
-        {/* A real sequence: each decision narrows the next one. */}
-        <ol className="mt-14 grid gap-px bg-or/22 md:mt-20 md:grid-cols-3">
-          {t.collectionsPage.compose.steps.map((stage, i) => (
-            <li
-              key={stage.step}
-              data-reveal
-              data-reveal-delay={i * 110}
-              className="bg-noir p-8 md:p-9"
-            >
-              <span className="font-display text-sm tracking-[0.2em] text-or/60">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <h3 className="monument mt-5 text-xl text-or-clair">{stage.step}</h3>
-              <p className="mt-4 text-[0.95rem] leading-[1.8] text-ivoire/62">
-                {stage.body}
-              </p>
-            </li>
-          ))}
-        </ol>
-
-        <div data-reveal className="mx-auto mt-24 max-w-[52ch] text-center md:mt-32">
-          <Title as="h3" className="text-[clamp(1.6rem,3vw,2.3rem)]">
-            {t.collectionsPage.customTitle}
+        <StarRule className="mx-auto mb-16 max-w-md md:mb-20" />
+        <div data-reveal className="mx-auto max-w-[52ch] text-center">
+          <Title as="h2" className="text-[clamp(1.6rem,3vw,2.3rem)]">
+            {c.customTitle}
           </Title>
-          <Lede className="mx-auto mt-7">{t.collectionsPage.customBody}</Lede>
+          <Lede className="mx-auto mt-7">{c.customBody}</Lede>
           <div className="mt-11 flex justify-center">
             <CtaPrimary href={whatsappLink()} external>
-              {t.collectionsPage.customCta}
+              {c.customCta}
             </CtaPrimary>
           </div>
         </div>
       </Section>
-    </>
+    </CartProvider>
   );
 }

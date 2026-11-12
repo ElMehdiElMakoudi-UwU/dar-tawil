@@ -8,6 +8,7 @@
     "start": "next start",
     "migrate": "node scripts/migrate.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
+    "restore": "node scripts/restore-backup.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

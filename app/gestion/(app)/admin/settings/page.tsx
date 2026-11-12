@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/gestion/auth";
 import { fill } from "@/lib/gestion/i18n";
 import { getT } from "@/lib/gestion/lang";
-import { getListRows, getUsers, type ListKind } from "@/lib/gestion/queries";
-import { addListItem, createUser, deleteListItem, updateUser } from "../../../actions";
+import { getBusiness, getListRows, getUsers, type ListKind } from "@/lib/gestion/queries";
+import { addListItem, createUser, deleteListItem, saveBusiness, updateUser } from "../../../actions";
 import { ActionButton, ActionForm, Submit } from "../../../_components/forms";
 import { Field, PageHeader, Section, Select } from "../../../_components/ui";
 
@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function SettingsPage() {
   const me = await requireAdmin();
-  const [users, listRows, t] = await Promise.all([getUsers(), getListRows(), getT()]);
+  const [users, listRows, business, t] = await Promise.all([getUsers(), getListRows(), getBusiness(), getT()]);
   const listLabels: Record<ListKind, string> = t.settings.lists;
   const roles = [
     { value: "staff", label: t.settings.roleStaff },
@@ -85,6 +85,44 @@ export default async function SettingsPage() {
           </div>
           <div className="mt-4">
             <Submit>{t.settings.createAccount}</Submit>
+          </div>
+        </ActionForm>
+      </Section>
+
+      <Section title={t.settings.businessTitle}>
+        <ActionForm action={saveBusiness} keep className="g-card">
+          <p className="g-muted mb-4 text-sm">{t.settings.businessSub}</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {(
+              [
+                ["business_name", t.settings.biz.business_name],
+                ["legal_name", t.settings.biz.legal_name],
+                ["phone", t.common.phone],
+                ["address", t.settings.biz.address],
+                ["city", t.common.city],
+                ["email", t.common.email],
+                ["ice", "ICE"],
+                ["if_no", t.settings.biz.if_no],
+                ["rc", t.settings.biz.rc],
+                ["patente", t.settings.biz.patente],
+                ["cnss", "CNSS"],
+                ["vat_rate", t.settings.biz.vat_rate],
+              ] as const
+            ).map(([key, label]) => (
+              <Field key={key} label={label}>
+                <input className="g-input" name={key} defaultValue={business[key]} inputMode={key === "vat_rate" ? "decimal" : undefined} />
+              </Field>
+            ))}
+            <Field label={t.settings.biz.receipt_footer} className="sm:col-span-2 lg:col-span-3">
+              <input className="g-input" name="receipt_footer" defaultValue={business.receipt_footer} />
+            </Field>
+            <Field label={t.settings.biz.invoice_footer} className="sm:col-span-2 lg:col-span-3">
+              <input className="g-input" name="invoice_footer" defaultValue={business.invoice_footer} placeholder={t.settings.biz.invoiceFooterPh} />
+            </Field>
+          </div>
+          <p className="g-muted mt-3 text-xs">{t.settings.biz.vatHint}</p>
+          <div className="mt-4">
+            <Submit>{t.common.save}</Submit>
           </div>
         </ActionForm>
       </Section>

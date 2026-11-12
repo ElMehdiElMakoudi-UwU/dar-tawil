@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
   // The dev-only "N" badge defaults to bottom-left, on top of the back-office
   // user box at the foot of the sidebar.
   devIndicators: { position: "bottom-right" },
+  experimental: {
+    // Collections photos are uploaded through a server action. The browser
+    // shrinks them first (~300 kB each); this leaves room for a batch.
+    serverActions: { bodySizeLimit: "12mb" },
+  },
 };
 
 export default nextConfig;

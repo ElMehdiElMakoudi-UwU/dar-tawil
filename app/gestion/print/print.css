@@ -1,0 +1,106 @@
+/* Receipts (80 mm thermal roll) and invoices (A4). Black on white whatever
+   the palette, since that is what the printer has. */
+
+@layer components {
+.p-doc {
+  --p-ink: #111;
+  --p-soft: #555;
+  --p-rule: #bbb;
+  min-height: 100dvh;
+  background: #e9e7e2;
+  color: var(--p-ink);
+  padding: 1.5rem 1rem 3rem;
+  overflow-x: auto;
+  font-family: var(--font-jost), ui-sans-serif, system-ui, sans-serif;
+}
+
+.p-bar {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.p-sheet {
+  margin-inline: auto;
+  background: #fff;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.15);
+}
+
+.p-doc p { margin: 0; }
+.p-doc hr { border: 0; border-top: 1px dashed var(--p-rule); margin: 0.5rem 0; }
+.p-doc .num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.p-strong { font-weight: 600; }
+.p-muted { color: var(--p-soft); }
+.p-center { text-align: center; }
+.p-end { text-align: end; }
+.p-row { display: flex; justify-content: space-between; gap: 0.75rem; font-variant-numeric: tabular-nums; }
+.p-brand { font-family: var(--font-marcellus), serif; font-size: 1.35em; letter-spacing: 0.02em; }
+
+/* ── receipt ── */
+.p-receipt .p-sheet {
+  width: 80mm;
+  padding: 5mm 4mm;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.p-receipt .p-lines li + li { margin-top: 0.3rem; }
+.p-receipt .p-total { font-size: 1.25em; font-weight: 700; margin: 0.15rem 0; }
+.p-receipt .p-small { font-size: 0.9em; color: var(--p-soft); }
+
+/* ── invoice ── */
+.p-invoice .p-sheet {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 16mm 15mm;
+  font-size: 12.5px;
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+}
+.p-head { display: flex; justify-content: space-between; gap: 2rem; }
+.p-title { font-family: var(--font-marcellus), serif; font-size: 1.9em; letter-spacing: 0.06em; margin-bottom: 0.3rem !important; }
+.p-client {
+  margin: 10mm 0 8mm auto;
+  width: 45%;
+  border: 1px solid var(--p-rule);
+  border-radius: 4px;
+  padding: 0.6rem 0.8rem;
+}
+.p-label { font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.08em; color: var(--p-soft); }
+.p-table { width: 100%; border-collapse: collapse; }
+.p-table th {
+  text-align: start;
+  font-weight: 600;
+  font-size: 0.85em;
+  border-bottom: 1.5px solid var(--p-ink);
+  padding: 0.35rem 0.4rem;
+}
+.p-table td { border-bottom: 1px solid #e3e3e3; padding: 0.4rem; vertical-align: top; }
+.p-totals { margin: 5mm 0 0 auto; min-width: 45%; border-collapse: collapse; }
+.p-totals td { padding: 0.25rem 0.4rem; }
+.p-totals .p-strong td { border-top: 1.5px solid var(--p-ink); font-size: 1.1em; }
+.p-words { margin-top: 8mm !important; }
+.p-foot {
+  margin-top: auto;
+  padding-top: 6mm;
+  border-top: 1px solid var(--p-rule);
+  text-align: center;
+  font-size: 0.85em;
+  color: var(--p-soft);
+}
+
+@media print {
+  .p-doc { background: none; padding: 0; min-height: 0; }
+  .p-bar { display: none; }
+  .p-sheet { box-shadow: none; margin: 0; }
+  .p-invoice .p-sheet { width: auto; min-height: calc(297mm - 24mm - 1px); padding: 0; }
+  .p-receipt .p-sheet { width: auto; padding: 0; }
+}
+}
+
+/* Named pages: the roll printer's driver sets the paper width, an invoice is A4. */
+.p-receipt .p-sheet { page: receipt; }
+.p-invoice .p-sheet { page: invoice; }
+@page receipt { margin: 2mm; }
+@page invoice { size: A4; margin: 12mm; }

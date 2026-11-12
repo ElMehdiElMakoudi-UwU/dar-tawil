@@ -8,11 +8,11 @@ export const site = {
   name: "Dar Tawil",
   /** Set with NEXT_PUBLIC_SITE_URL at build time — see lib/env.ts. */
   url: siteUrl,
-  /** 0614149785 in international format, no spaces, for wa.me links. */
-  whatsapp: "212614149785",
-  phoneDisplay: "+212 6 14 14 97 85",
+  /** 0606063742 in international format, no spaces, for wa.me links. */
+  whatsapp: "212606063742",
+  phoneDisplay: "+212 6 06 06 37 42",
   /** Dialable from a phone; keeps the local form for Moroccan visitors. */
-  phoneHref: "tel:+212614149785",
+  phoneHref: "tel:+212606063742",
   /** PLACEHOLDER */
   email: "contact@dartawil.ma",
   /** PLACEHOLDER */

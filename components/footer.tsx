@@ -101,7 +101,22 @@ export function Footer({ lang, t }: { lang: Locale; t: Dictionary }) {
           <p>
             © {new Date().getFullYear()} {site.name}. {t.footer.rights}
           </p>
-          <p>{t.footer.credits}</p>
+          <div className="flex items-center gap-4">
+            <p>{t.footer.credits}</p>
+            {/* Discreet entry to the back office (its own login guards it). */}
+            <a
+              href="/gestion"
+              rel="nofollow"
+              aria-label="Back office"
+              title="Back office"
+              className="inline-flex h-7 w-7 items-center justify-center text-ivoire/30 transition-colors hover:text-or-clair"
+            >
+              <svg width="13" height="15" viewBox="0 0 13 15" fill="none" aria-hidden>
+                <rect x="1" y="6.5" width="11" height="7.5" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
+                <path d="M3.5 6.5V4.5a3 3 0 0 1 6 0v2" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+            </a>
+          </div>
         </div>
       </div>
     </footer>

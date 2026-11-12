@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { dayLabel, mad, qty } from "@/lib/gestion/format";
 import { fill } from "@/lib/gestion/i18n";
 import { getLang, getT } from "@/lib/gestion/lang";
@@ -40,11 +41,19 @@ export async function OrdersTable({ rows, isAdmin }: { rows: SaleRow[]; isAdmin:
             return (
               <tr key={no}>
                 <td className="whitespace-nowrap">
-                  <span className="font-medium">{no}</span>
+                  <Link href={`/gestion/sales/${no}`} className="font-medium underline decoration-[var(--g-line)] underline-offset-4">
+                    {no}
+                  </Link>
                   <br />
                   <span className="g-muted text-xs">
                     {dayLabel(first.date, lang)} · {first.created_by ?? "—"}
                   </span>
+                  {first.return_of_no && (
+                    <div>
+                      <span className="g-badge g-badge-warn">{fill(t.sale.returnOf, { no: first.return_of_no })}</span>
+                    </div>
+                  )}
+                  {first.invoice_no && <div className="g-muted text-xs">{first.invoice_no}</div>}
                 </td>
                 <td>
                   {first.customer ?? <span className="g-muted">{t.common.walkIn}</span>}
@@ -78,10 +87,10 @@ export async function OrdersTable({ rows, isAdmin }: { rows: SaleRow[]; isAdmin:
                     ))}
                   </ul>
                 </td>
-                <td className="num font-medium">{mad(orderTotal)}</td>
+                <td className={`num font-medium ${orderTotal < 0 ? "g-neg" : ""}`}>{mad(orderTotal)}</td>
                 {isAdmin && <td className={`num ${orderProfit < 0 ? "g-neg" : ""}`}>{mad(orderProfit)}</td>}
                 <td>
-                  <Paid paid={paid} />
+                  {first.return_of_no ? <span className="g-badge g-badge-muted">{t.sale.refunded}</span> : <Paid paid={paid} />}
                   {!paid && first.received > 0 && (
                     <div className="g-muted text-xs tabular-nums">
                       {fill(t.orders.received, { amount: mad(first.received), rest: mad(Math.max(orderTotal - first.received, 0)) })}
@@ -90,7 +99,7 @@ export async function OrdersTable({ rows, isAdmin }: { rows: SaleRow[]; isAdmin:
                   {first.payment && <div className="g-muted text-xs">{first.payment}</div>}
                 </td>
                 <td className="text-end">
-                  {!paid ? (
+                  {first.return_of_no ? null : !paid ? (
                     <ActionButton action={setOrderPaid} fields={{ order_no: no, paid: "true" }}>
                       {t.common.markPaid}
                     </ActionButton>
