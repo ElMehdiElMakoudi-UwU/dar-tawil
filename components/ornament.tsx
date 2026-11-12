@@ -224,7 +224,7 @@ export function Khatem({
 /** A single lattice star, used where a divider needs a full stop. */
 export function StarRule({ className = "" }: { className?: string }) {
   return (
-    <div className={`flex items-center gap-5 text-or/45 ${className}`}>
+    <div data-reveal className={`star-rule flex items-center gap-5 text-or/45 ${className}`}>
       <span className="h-px flex-1 bg-current" />
       <Khatem />
       <span className="h-px flex-1 bg-current" />

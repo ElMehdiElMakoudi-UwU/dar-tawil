@@ -103,6 +103,13 @@ const paths = {
     </>
   ),
   download: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />,
+  image: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="9" cy="9" r="2" />
+      <path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21" />
+    </>
+  ),
   chevron: <path d="m6 9 6 6 6-6" />,
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
   close: <path d="M18 6 6 18M6 6l12 12" />,

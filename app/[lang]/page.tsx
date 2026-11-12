@@ -3,6 +3,7 @@ import { Bonbon } from "@/components/bonbon";
 import { Mark, Wordmark } from "@/components/mark";
 import { Cubes, Khatem, Lattice, StarRule } from "@/components/ornament";
 import { Photo } from "@/components/photo";
+import { Procession, Ribbon } from "@/components/procession";
 import {
   CtaGhost,
   CtaPrimary,
@@ -17,6 +18,19 @@ import { flavours } from "@/lib/flavours";
 import { photos } from "@/lib/photos";
 import { palette } from "@/lib/theme";
 import { getDictionary } from "./dictionaries";
+
+/** A line set word by word, each word rising out of its own slot. */
+function Words({ text, start }: { text: string; start: number }) {
+  return text.split(" ").map((word, i) => (
+    <span key={`${word}-${i}`}>
+      <span className="word">
+        <span className="word-in" style={{ animationDelay: `${start + i * 85}ms` }}>
+          {word}
+        </span>
+      </span>{" "}
+    </span>
+  ));
+}
 
 type OriginCopy = {
   place: string;
@@ -70,14 +84,15 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
   return (
     <>
       {/* ── Hero: the mark behind a carved screen, lit from one side ── */}
-      <section className="relative flex min-h-[100svh] items-center overflow-hidden">
+      <section
+        data-pointer
+        className="hero relative flex min-h-[100svh] items-center overflow-hidden"
+      >
         {blanc ? (
           /* The lid of the box: cube bands top and bottom, the name framed between. */
-          <Cubes
-            id="cubes-hero"
-            className="pointer-events-none absolute inset-0 text-or/45"
-            scale={1.5}
-          />
+          <div aria-hidden className="hero-ground pointer-events-none absolute -inset-8">
+            <Cubes id="cubes-hero" className="absolute inset-0 text-or/45" scale={1.5} />
+          </div>
         ) : (
           <>
             <Lattice
@@ -105,10 +120,12 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
         )}
 
         <div className="relative mx-auto w-full max-w-[82rem] px-5 pb-24 pt-32 text-center md:px-10 md:pb-28 md:pt-36">
-          <Mark
-            title={t.meta.ogAlt}
-            className="rise mx-auto h-28 w-[5.2rem] md:h-40 md:w-[7.4rem]"
-          />
+          <div className="hero-mark rise mx-auto w-fit">
+            <Mark
+              title={t.meta.ogAlt}
+              className="mark-shine h-28 w-[5.2rem] md:h-40 md:w-[7.4rem]"
+            />
+          </div>
 
           {blanc ? (
             <div
@@ -124,15 +141,14 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
             </p>
           )}
 
-          <h1
-            className="rise monument mx-auto mt-6 max-w-[16ch] text-[clamp(2.5rem,7vw,5.25rem)] text-ivoire"
-            style={{ animationDelay: "260ms" }}
-          >
-            {line1}
+          <h1 className="monument mx-auto mt-6 max-w-[16ch] text-[clamp(2.5rem,7vw,5.25rem)] text-ivoire">
+            <Words text={line1} start={260} />
             {line2 ? (
               <>
                 <br />
-                <span className="text-or-clair">{line2}</span>
+                <span className="text-or-clair">
+                  <Words text={line2} start={260 + line1.split(" ").length * 85 + 60} />
+                </span>
               </>
             ) : null}
           </h1>
@@ -152,15 +168,27 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
             <CtaGhost href={`/${l}/contact`}>{t.hero.secondary}</CtaGhost>
           </div>
 
-          <p
-            className="rise mt-20 text-[0.62rem] uppercase tracking-[0.3em] text-ivoire/30 md:mt-24"
-            style={{ animationDelay: "700ms" }}
+          <div
+            className="rise mt-16 flex flex-col items-center gap-4 md:mt-20"
+            style={{ animationDelay: "900ms" }}
             aria-hidden
           >
-            {t.hero.scroll}
-          </p>
+            <p className="text-[0.62rem] uppercase tracking-[0.3em] text-ivoire/35">
+              {t.hero.scroll}
+            </p>
+            <span className="scroll-cue block h-12 w-px" />
+          </div>
         </div>
       </section>
+
+      {/* ── What the shop holds, drifting past like the band round a lid ── */}
+      <Ribbon
+        className="border-y border-or/20 py-7 md:py-9"
+        items={[
+          ...t.collectionsPage.varieties.names,
+          ...flavours.slice(0, 6).map((f) => t.flavours.items[f.slug].name),
+        ]}
+      />
 
       {/* ── Two origins, 2 400 km apart, facing each other ── */}
       <Section className="border-t border-or/15">
@@ -224,7 +252,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
               <Link
                 key={item.slug}
                 href={isDfou3 ? `/${l}/contact` : `/${l}/collections`}
-                className={`group flex min-h-[15rem] flex-col justify-between px-6 py-8 transition-colors duration-500 md:p-9 ${span} ${
+                className={`tile group relative flex min-h-[15rem] flex-col justify-between px-6 py-8 transition-colors duration-500 md:p-9 ${span} ${
                   isDfou3
                     ? "panel-accent hover:bg-accent-hover"
                     : "bg-noir hover:bg-brou"
@@ -295,16 +323,17 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
           />
           {/* Five to a row, the last row centred — the layout of the printed card. */}
           <ul className="relative flex flex-wrap justify-center gap-y-12">
-            {flavours.map((flavour) => {
+            {flavours.map((flavour, i) => {
               const copy = t.flavours.items[flavour.slug];
               return (
                 <li
                   key={flavour.slug}
-                  className="group flex w-1/2 flex-col items-center px-2 text-center sm:w-1/3 md:w-1/5"
+                  style={{ ["--i" as string]: i }}
+                  className="bonbon-item group flex w-1/2 flex-col items-center px-2 text-center sm:w-1/3 md:w-1/5"
                 >
                   <Bonbon
                     flavour={flavour}
-                    className="h-auto w-[4.5rem] transition-transform duration-500 ease-[var(--ease-lantern)] group-hover:-translate-y-1.5 md:w-[5.25rem]"
+                    className="bonbon h-auto w-[4.5rem] md:w-[5.25rem]"
                   />
                   <h3 className="mt-4 font-display text-[1.05rem] leading-snug text-ivoire">
                     {copy.name}
@@ -323,11 +352,29 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
         </div>
       </Section>
 
+      {/* ── A procession of arches: the shop's own photographs, drifting past ── */}
+      <section aria-label={t.collections.eyebrow} className="pb-24 md:pb-32">
+        <Procession
+          slides={photos.gallery.map((src, i) => ({
+            src,
+            alt: [
+              t.origins.left.photo,
+              t.collections.items[1].photo,
+              t.collections.items[0].photo,
+              t.origins.right.photo,
+              t.collections.items[2].photo,
+              t.collections.items[1].photo,
+            ][i],
+          }))}
+        />
+      </section>
+
       {/* ── Dfou3 ── */}
       <section className="panel-accent relative overflow-hidden px-5 py-24 md:px-10 md:py-32">
         <Lattice
           id="lattice-dfou3"
-          className={`pointer-events-none absolute inset-0 ${
+          /* one tile (120 × 1.1) of slack each side, so the slow drift loops seamlessly */
+          className={`lattice-drift pointer-events-none absolute -left-[132px] -top-[132px] h-[calc(100%+264px)] w-[calc(100%+264px)] ${
             blanc ? "text-on-accent-eyebrow/[0.12]" : "text-on-accent-title/[0.09]"
           }`}
           scale={1.1}

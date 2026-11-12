@@ -62,7 +62,7 @@ export function CtaPrimary({
   external?: boolean;
 }) {
   const className =
-    "cta-primary group inline-flex items-center gap-3 bg-or px-8 py-4 text-[0.78rem] font-medium uppercase tracking-[0.2em] text-noir transition-colors duration-300 hover:bg-or-clair";
+    "cta-primary cta-sheen group relative inline-flex items-center overflow-hidden gap-3 bg-or px-8 py-4 text-[0.78rem] font-medium uppercase tracking-[0.2em] text-noir transition-colors duration-300 hover:bg-or-clair";
   const inner = (
     <>
       {children}
@@ -91,7 +91,7 @@ export function CtaGhost({ href, children }: { href: string; children: ReactNode
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-3 border border-or/45 px-8 py-4 text-[0.78rem] font-medium uppercase tracking-[0.2em] text-or-clair transition-colors duration-300 hover:border-or hover:bg-or/10"
+      className="cta-ghost relative inline-flex items-center gap-3 overflow-hidden border border-or/45 px-8 py-4 text-[0.78rem] font-medium uppercase tracking-[0.2em] text-or-clair transition-colors duration-300 hover:border-or"
     >
       {children}
     </Link>

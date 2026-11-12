@@ -32,18 +32,26 @@ export function Photo({
 
   return (
     <figure
-      className={`relative overflow-hidden bg-brou ${className}`}
+      data-reveal
+      className={`photo relative overflow-hidden bg-brou ${className}`}
       style={clip}
     >
       {src ? (
-        <Image
-          src={src}
-          alt={alt}
-          fill
-          priority={priority}
-          sizes="(max-width: 768px) 92vw, 42vw"
-          className="object-cover"
-        />
+        <>
+          {/* Taller than the frame, so it can drift against the scroll. */}
+          <div data-parallax="0.07" className="photo-layer absolute inset-x-0 -inset-y-[9%]">
+            <Image
+              src={src}
+              alt={alt}
+              fill
+              priority={priority}
+              sizes="(max-width: 768px) 92vw, 42vw"
+              className="photo-img object-cover"
+            />
+          </div>
+          {/* The arch is unveiled from its footings up, as in the intro. */}
+          <span aria-hidden className="photo-veil absolute inset-0 bg-brou-clair" />
+        </>
       ) : (
         <>
           <div

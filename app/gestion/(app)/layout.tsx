@@ -37,6 +37,7 @@ export default async function AppLayout({ children }: LayoutProps<"/gestion">) {
     user.role === "admin"
       ? [
           { href: "/gestion/admin", label: t.nav.dashboard, icon: "dashboard" },
+          { href: "/gestion/admin/collections", label: t.nav.collections, icon: "image" },
           {
             label: t.nav.groupFinance,
             icon: "wallet",

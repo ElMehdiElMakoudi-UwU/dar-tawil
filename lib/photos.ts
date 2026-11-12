@@ -15,6 +15,15 @@ export const photos = {
   visit: "/photos/boutique-plateau.jpg",
   /** The workshop or the founders — La maison. */
   maison: "",
+  /** The drifting procession of arches on the home page, in order. */
+  gallery: [
+    "/photos/dattes-detail.jpg",
+    "/photos/coffret-dar-tawil.jpg",
+    "/photos/dattes-coffret-rond.jpg",
+    "/photos/bonbons-detail.jpg",
+    "/photos/boutique-plateau.jpg",
+    "/photos/bonbons-coffret.jpg",
+  ],
   /** One per product line, keyed by slug — Collections page. */
   range: {
     dattes: "/photos/dattes-coffret-rond.jpg",

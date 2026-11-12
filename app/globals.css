@@ -497,14 +497,538 @@ html.intro .intro-word {
   }
 }
 
+/* ── Hero ────────────────────────────────────────────────────────────
+   The headline rises word by word out of its own slot; the mark floats a
+   breath and a glint crosses its foil every few seconds; the ground and the
+   mark lean very slightly away from the pointer, so the lid has depth. */
+.word {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding-block: 0.08em 0.16em;
+  margin-block: -0.08em -0.16em;
+}
+
+.word-in {
+  display: inline-block;
+  animation: word-rise 1.15s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes word-rise {
+  from {
+    transform: translate3d(0, 110%, 0) rotate(2.5deg);
+  }
+  to {
+    transform: none;
+  }
+}
+
+html.intro .word-in,
+html.intro .mark-shine::after {
+  animation-play-state: paused;
+}
+
+.hero-ground,
+.hero-mark {
+  transition: translate 1.4s var(--ease-lantern);
+}
+
+.hero-ground {
+  translate: calc(var(--mx, 0) * 16px) calc(var(--my, 0) * 12px);
+}
+
+.hero-mark {
+  translate: calc(var(--mx, 0) * -9px) calc(var(--my, 0) * -7px);
+}
+
+.hero-mark .mark {
+  animation: float 7s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -7px, 0);
+  }
+}
+
+.mark-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.mark-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 32%,
+    rgb(255 250 236 / 0.95) 50%,
+    transparent 68%
+  );
+  transform: translate3d(-140%, 0, 0);
+  animation: foil 8s ease-in-out 2.4s infinite;
+}
+
+@keyframes foil {
+  0% {
+    transform: translate3d(-140%, 0, 0);
+  }
+  18%,
+  100% {
+    transform: translate3d(140%, 0, 0);
+  }
+}
+
+/* A thread of gold running down, as if pulled from the box. */
+.scroll-cue {
+  background: linear-gradient(to bottom, transparent, var(--color-or));
+  animation: cue 2.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes cue {
+  0% {
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  48% {
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+  52% {
+    transform: scaleY(1);
+    transform-origin: bottom;
+  }
+  100% {
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+}
+
+/* ── Header: the page read so far, as a gold hairline ──────────────── */
+.scroll-line {
+  transform: scaleX(var(--scroll, 0));
+  opacity: 0.75;
+}
+
+/* ── Moving bands ─────────────────────────────────────────────────── */
+.ribbon,
+.procession {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 9%, #000 91%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 9%, #000 91%, transparent);
+}
+
+.ribbon-track {
+  animation: band 70s linear infinite;
+}
+
+.procession-track {
+  animation: band 95s linear infinite reverse;
+}
+
+.ribbon:hover .ribbon-track,
+.procession:hover .procession-track {
+  animation-play-state: paused;
+}
+
+@keyframes band {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.procession-img {
+  transition: scale 1.2s var(--ease-lantern);
+}
+
+.procession-item:hover .procession-img {
+  scale: 1.06;
+}
+
+/* The lattice behind the dfou3 panel, drifting one tile at a time. */
+.lattice-drift {
+  animation: drift 80s linear infinite;
+}
+
+@keyframes drift {
+  to {
+    transform: translate3d(132px, 132px, 0);
+  }
+}
+
+/* ── Photographs: unveiled from the footings up, then drifting ─────── */
+.photo-layer {
+  transform: translate3d(0, var(--py, 0px), 0);
+  will-change: transform;
+}
+
+.photo-img {
+  transition:
+    transform 2s var(--ease-lantern),
+    scale 1.2s var(--ease-lantern);
+}
+
+.photo:hover .photo-img {
+  scale: 1.035;
+}
+
+.photo-veil {
+  transform-origin: top;
+  transform: scaleY(0);
+  transition: transform 1.3s cubic-bezier(0.77, 0, 0.18, 1);
+}
+
+/* the frame itself stays put; only the veil and the image move */
+html.reveal-ready .photo[data-reveal] {
+  opacity: 1;
+  transform: none;
+}
+
+html.reveal-ready .photo[data-reveal]:not([data-shown]) .photo-veil {
+  transform: scaleY(1);
+}
+
+html.reveal-ready .photo[data-reveal]:not([data-shown]) .photo-img {
+  transform: scale(1.16);
+}
+
+/* ── The star rule draws itself out from the star ─────────────────── */
+html.reveal-ready .star-rule[data-reveal] {
+  opacity: 1;
+  transform: none;
+}
+
+.star-rule > span {
+  transition: transform 1.6s var(--ease-lantern) 0.15s;
+}
+
+.star-rule > span:first-child {
+  transform-origin: right;
+}
+
+.star-rule > span:last-child {
+  transform-origin: left;
+}
+
+[dir="rtl"] .star-rule > span:first-child {
+  transform-origin: left;
+}
+
+[dir="rtl"] .star-rule > span:last-child {
+  transform-origin: right;
+}
+
+.star-rule > svg {
+  transition:
+    transform 1.4s var(--ease-lantern),
+    opacity 1s ease-out;
+}
+
+html.reveal-ready .star-rule:not([data-shown]) > span {
+  transform: scaleX(0);
+}
+
+html.reveal-ready .star-rule:not([data-shown]) > svg {
+  transform: rotate(-135deg) scale(0.5);
+  opacity: 0;
+}
+
+/* ── Shop tiles: a hairline frame steps in on hover ───────────────── */
+.tile::after {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-or) 50%, transparent);
+  opacity: 0;
+  transform: scale(1.025);
+  transition:
+    opacity 0.6s ease-out,
+    transform 0.9s var(--ease-lantern);
+  pointer-events: none;
+}
+
+.panel-accent.tile::after {
+  border-color: color-mix(in srgb, var(--color-on-accent-eyebrow) 60%, transparent);
+}
+
+.tile:hover::after,
+.tile:focus-visible::after {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── The flavour card: bonbons set down one by one ────────────────── */
+.bonbon {
+  transition:
+    transform 0.7s var(--ease-lantern),
+    filter 0.7s ease-out;
+}
+
+.bonbon-item:hover .bonbon {
+  transform: translate3d(0, -8px, 0) rotate(-4deg);
+  filter: drop-shadow(0 14px 12px rgb(70 45 20 / 0.2));
+}
+
+html.reveal-ready [data-reveal] .bonbon-item {
+  opacity: 0;
+  transform: translate3d(0, 1.1rem, 0) scale(0.92);
+  transition:
+    opacity 0.9s ease-out,
+    transform 1s var(--ease-lantern);
+  transition-delay: calc(var(--i, 0) * 65ms + 250ms);
+}
+
+html.reveal-ready [data-reveal][data-shown] .bonbon-item {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────── */
+.cta-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.42) 50%, transparent 70%);
+  transform: translate3d(-120%, 0, 0);
+  transition: transform 0.95s var(--ease-lantern);
+  pointer-events: none;
+}
+
+.cta-sheen:hover::after {
+  transform: translate3d(120%, 0, 0);
+}
+
+.cta-ghost {
+  isolation: isolate;
+}
+
+.cta-ghost::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in srgb, var(--color-or) 13%, transparent);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.65s var(--ease-lantern);
+}
+
+.cta-ghost:hover::before {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+[dir="rtl"] .cta-ghost::before {
+  transform-origin: left;
+}
+
+[dir="rtl"] .cta-ghost:hover::before {
+  transform-origin: right;
+}
+
+/* ── Collections: the packs, presented like pieces in a vitrine ───── */
+
+/* Category rule: a gold hairline drawn out from the title. */
+.cat-rule {
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--color-or) 70%, transparent),
+    color-mix(in srgb, var(--color-or) 22%, transparent) 60%,
+    transparent
+  );
+  transform-origin: left;
+  transition: transform 1.8s var(--ease-lantern) 0.2s;
+}
+
+[dir="rtl"] .cat-rule {
+  transform-origin: right;
+  background: linear-gradient(
+    to left,
+    color-mix(in srgb, var(--color-or) 70%, transparent),
+    color-mix(in srgb, var(--color-or) 22%, transparent) 60%,
+    transparent
+  );
+}
+
+html.reveal-ready .cat-head:not([data-shown]) .cat-rule {
+  transform: scaleX(0);
+}
+
+/* The card rises a little slower and further than plain text. */
+html.reveal-ready .pack[data-reveal] {
+  transform: translate3d(0, 2.5rem, 0);
+  transition:
+    opacity 1.2s var(--ease-lantern),
+    transform 1.4s var(--ease-lantern);
+}
+
+html.reveal-ready .pack[data-reveal][data-shown] {
+  transform: none;
+}
+
+/* The photo is unveiled from the footings up, then settles from a zoom. */
+.pack-veil {
+  transform-origin: top;
+  transform: scaleY(0);
+  transition: transform 1.3s cubic-bezier(0.77, 0, 0.18, 1) 0.15s;
+}
+
+html.reveal-ready .pack:not([data-shown]) .pack-veil {
+  transform: scaleY(1);
+}
+
+.pack-img {
+  transition:
+    transform 2.2s var(--ease-lantern),
+    scale 1.6s var(--ease-lantern);
+}
+
+html.reveal-ready .pack:not([data-shown]) .pack-img {
+  transform: scale(1.12);
+}
+
+/* Hover: a slow lean in, a hairline frame, a pass of light, a warm shadow. */
+.pack-frame {
+  transition: box-shadow 0.9s var(--ease-lantern);
+}
+
+.pack:hover .pack-frame {
+  box-shadow: 0 34px 60px -34px color-mix(in srgb, var(--color-or-profond) 55%, transparent);
+}
+
+.pack:hover .pack-img {
+  scale: 1.045;
+}
+
+.pack-hairline {
+  border: 1px solid color-mix(in srgb, var(--color-or) 55%, transparent);
+  opacity: 0;
+  transform: scale(1.03);
+  transition:
+    opacity 0.7s ease-out,
+    transform 1s var(--ease-lantern);
+}
+
+.pack:hover .pack-hairline {
+  opacity: 1;
+  transform: none;
+}
+
+.pack-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgb(255 255 255 / 0.32) 50%,
+    transparent 65%
+  );
+  transform: translate3d(-130%, 0, 0);
+  transition: transform 1.4s var(--ease-lantern);
+  pointer-events: none;
+}
+
+.pack:hover .pack-frame::after {
+  transform: translate3d(130%, 0, 0);
+}
+
+/* The short rule under the name stretches out on hover. */
+.pack-underline {
+  transform-origin: left;
+  transition:
+    transform 0.9s var(--ease-lantern),
+    background-color 0.6s ease-out;
+}
+
+[dir="rtl"] .pack-underline {
+  transform-origin: right;
+}
+
+.pack:hover .pack-underline {
+  transform: scaleX(2.4);
+  background-color: var(--color-or);
+}
+
+/* The featured badge catches the light every few seconds. */
+.pack-badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.55) 50%, transparent 70%);
+  transform: translate3d(-120%, 0, 0);
+  animation: badge-glint 5.5s var(--ease-lantern) 1.5s infinite;
+}
+
+@keyframes badge-glint {
+  0% {
+    transform: translate3d(-120%, 0, 0);
+  }
+  28%,
+  100% {
+    transform: translate3d(120%, 0, 0);
+  }
+}
+
+/* A new size eases its price in rather than swapping it. */
+@keyframes price-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0.45rem, 0);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+.price-in {
+  animation: price-in 0.6s var(--ease-lantern) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
 
   .lantern-sweep,
-  .rise {
+  .rise,
+  .word-in,
+  .hero-mark .mark,
+  .mark-shine::after,
+  .scroll-cue,
+  .lattice-drift,
+  .pack-badge::after,
+  .price-in {
     animation: none;
+  }
+
+  .pack-img,
+  .pack-frame::after,
+  .pack-hairline,
+  .pack-underline {
+    transition: none;
+  }
+
+  /* The bands stand still and can be scrolled by hand instead. */
+  .ribbon-track,
+  .procession-track {
+    animation: none;
+  }
+
+  .ribbon,
+  .procession {
+    overflow-x: auto;
+  }
+
+  .photo-layer {
+    transform: none;
   }
 
   html.reveal-ready [data-reveal] {

@@ -141,6 +141,7 @@ export const backupTables = [
   "users", "lists", "settings", "products", "customers", "employees",
   "orders", "order_lines", "sales", "sale_payments", "invoices",
   "purchases", "expenses", "payroll", "cash_movements", "cash_counts", "stock_adjustments",
+  "catalog_packs", "catalog_variants", "catalog_images",
 ] as const;
 export const backupSequences = ["order_seq", "prep_order_seq", "return_seq"] as const;
 
@@ -149,7 +150,14 @@ export async function fullBackup() {
   await requireAdmin();
   return sql.begin("isolation level repeatable read read only", async (tx) => {
     const tables: Record<string, readonly unknown[]> = {};
-    for (const t of backupTables) tables[t] = await tx`select * from ${tx(t)} order by 1`;
+    for (const t of backupTables) {
+      // Uploaded photos go out as Postgres hex text ('\x…'), which the
+      // restore script's json_populate_recordset casts straight back to bytea.
+      tables[t] =
+        t === "catalog_images"
+          ? await tx`select id, variant_id, position, src, mime, data::text as data, created_at from catalog_images order by 1`
+          : await tx`select * from ${tx(t)} order by 1`;
+    }
     const sequences: Record<string, number> = {};
     for (const s of backupSequences) {
       const [r] = await tx<{ last_value: number; is_called: boolean }[]>`select last_value::int, is_called from ${tx(s)}`;

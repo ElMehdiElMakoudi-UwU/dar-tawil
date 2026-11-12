@@ -4,6 +4,7 @@ import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { Intro } from "@/components/intro";
 import { ArchClipDefs } from "@/components/ornament";
+import { Motion } from "@/components/motion";
 import { RevealOnScroll } from "@/components/reveal";
 import { locales, localeDir, type Locale } from "@/lib/locales";
 import { site } from "@/lib/site";
@@ -122,6 +123,7 @@ export default async function RootLayout({
         <main id="contenu">{children}</main>
         <Footer lang={locale} t={t} />
         <RevealOnScroll />
+        <Motion />
       </body>
     </html>
   );
