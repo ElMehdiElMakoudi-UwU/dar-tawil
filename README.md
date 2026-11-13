@@ -1,8 +1,8 @@
 # Dar Tawil — site vitrine
 
 Trilingual showcase site (FR / EN / AR with RTL) for Dar Tawil, a house in Ksar
-El Kebir selling dates and Belgian couverture chocolate in gift coffrets and
-wedding dfou3.
+El Kebir selling dates and Belgian couverture chocolate in gift coffrets,
+chocolate bars and event packs.
 
 Next.js 16 (App Router) · Tailwind v4 · the public site is fully static — 15
 prerendered pages. The back office at `/gestion` is dynamic and needs Postgres
@@ -44,10 +44,10 @@ design reads correctly. None of it is Dar Tawil's real information.
   `collections.items`. These are written as *starting points*, not fixed
   recipes: a coffret can hold dates, chocolates or both, and the customer
   settles the format, the contents and the budget.
-- **The date varieties** — the list in `origins.left.body` (Majhoul, Boufeggous,
+- **The date varieties** — the list in `collectionsPage.varieties.names` (Majhoul, Boufeggous,
   Bouittob, Nejda, Deglet Nour) is a plausible placeholder. Replace it with what
   the house actually carries; the site never claims a single region of origin.
-- **Dfou3 terms** — minimums, lead times, delivery cities, the six-week figure.
+- **Made-to-order terms** — minimums, lead times, delivery cities (`bespoke` in `content/*.ts`).
 - **All photography** — every image slot currently shows a labelled plate.
 
 ## Contact form
@@ -201,7 +201,7 @@ Every colour on the site reads from tokens, so switching is one word.
   saturated emerald ground, cream type, gold accents. Reads as a confiseur, and
   matches the boxes when they sit next to the site.
 
-The inverted panel (the Dfou3 band, and its cell in the collections tray) is the
+The inverted panel (the made-to-order band on the home page) is the
 one place the two palettes diverge structurally: in `nuit` it is a deep green
 block against the dark ground; in `jour` it becomes the pale sage of the box
 itself, with dark green type. Its colours come from the `--color-on-accent-*`
@@ -214,8 +214,8 @@ Three shapes carry the whole site, all taken from the logo:
 - **the arch** — every photograph is masked into the multifoil arch from the
   mark (`ARCH_PATH` in `components/ornament.tsx`);
 - **the lattice** — the star-and-cross zellige field carved inside that arch,
-  used as a low-contrast ground in the hero, the dfou3 band and the footer;
-- **the tray** — the collections grid on the home page is laid out as the
+  used as a low-contrast ground in the hero, the made-to-order band and the footer;
+- **the tray** — the collection categories on the home page are laid out as the
   compartments inside a real coffret: hairline gold dividers, no gaps.
 
 The monogram is raster inside the supplied PDF, so `public/brand/logo-mask.png`

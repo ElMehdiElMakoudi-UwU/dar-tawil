@@ -70,7 +70,7 @@ export function PackCard({
   }
 
   return (
-    <article data-reveal data-reveal-delay={(index % 3) * 140} className="pack group/pack flex flex-col">
+    <article data-reveal data-reveal-delay={(index % 3) * 90} className="pack group/pack flex flex-col">
       {/* Keyed on the size so the slider starts again at its first photo. */}
       <Slider
         key={variant.id}

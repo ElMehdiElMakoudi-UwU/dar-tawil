@@ -36,7 +36,7 @@ insert into products (sku, name, category, unit, unit_cost, price, opening_stock
   ('BOX-R12', 'Coffret rond 12 pièces',        'Gift boxes', 'U',  18,  45, 30, 10),
   ('BOX-C24', 'Coffret carré 24 pièces',       'Gift boxes', 'U',  25,  65, 30, 10),
   ('BOX-E2',  'Coffret deux étages',           'Gift boxes', 'U',  60, 150, 15,  5),
-  ('BOX-PLT', 'Plateau dfou3 (présentation)',  'Gift boxes', 'U', 120, 350, 10, 40),
+  ('BOX-PLT', 'Plateau de présentation',       'Gift boxes', 'U', 120, 350, 10, 40),
   ('OTH-CRT', 'Carte message personnalisée',   'Other',      'U',   2,  10, 100, 20);
 
 -- ── Customers ───────────────────────────────────────────────────────
@@ -322,7 +322,7 @@ begin
 end $f$;
 
 select pg_temp.demo_order('Nadia Tazi', 'Instagram / WhatsApp', 'delivery', current_date + 12, '16:00', 'new',
-  'Dfou3 de mariage : 6 plateaux, dattes fourrées au centre, bonbons en couronne. Couleurs : blanc et doré.',
+  'Fiançailles : 6 plateaux, dattes fourrées au centre, bonbons en couronne. Couleurs : blanc et doré.',
   'Rubans dorés, monogramme N & A sur chaque plateau', 1500, 'Bank transfer',
   '[{"sku":"BOX-PLT","qty":6},{"sku":"DAT-FRC","qty":3},{"sku":"DAT-MAJ","qty":4},{"sku":"CHO-PIA","qty":60},{"sku":"CHO-CDG","qty":60},{"sku":"CHO-KON","qty":60}]');
 

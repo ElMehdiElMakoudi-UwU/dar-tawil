@@ -3,9 +3,9 @@
 import { useEffect } from "react";
 
 const FLY_EASE = "cubic-bezier(0.65, 0, 0.35, 1)";
-const FLY_MS = 900;
+const FLY_MS = 700;
 /** How long the name waits behind the mark before following it. */
-const WORD_LAG_MS = 220;
+const WORD_LAG_MS = 140;
 
 /**
  * Once the mark is built, flies it into the header's own mark, the name after
@@ -69,7 +69,7 @@ export function IntroController() {
       if (rule) {
         running.push(
           rule.animate([{ opacity: 1 }, { opacity: 0 }], {
-            duration: 300,
+            duration: 250,
             fill: "forwards",
           }),
         );
@@ -83,7 +83,7 @@ export function IntroController() {
     // on a slow hydration, already over.
     const settled = word?.getAnimations()[0]?.finished ?? Promise.resolve();
     settled.then(() => {
-      timer = window.setTimeout(start, 180);
+      timer = window.setTimeout(start, 80);
     }).catch(() => {});
 
     const skip = () => {

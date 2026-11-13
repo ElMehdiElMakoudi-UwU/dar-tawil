@@ -94,6 +94,7 @@ export default async function RootLayout({
   const nav = [
     { href: `/${locale}/maison`, label: t.nav.maison },
     { href: `/${locale}/collections`, label: t.nav.collections },
+    { href: `/${locale}/avis`, label: t.nav.avis },
     { href: `/${locale}/contact`, label: t.nav.contact },
   ];
 

@@ -10,6 +10,7 @@ export function Footer({ lang, t }: { lang: Locale; t: Dictionary }) {
   const nav = [
     { href: `/${lang}/maison`, label: t.nav.maison },
     { href: `/${lang}/collections`, label: t.nav.collections },
+    { href: `/${lang}/avis`, label: t.nav.avis },
     { href: `/${lang}/contact`, label: t.nav.contact },
   ];
 

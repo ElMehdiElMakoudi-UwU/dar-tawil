@@ -2,12 +2,13 @@ export const fr = {
   meta: {
     title: "Dar Tawil — Coffrets de dattes & chocolat belge",
     description:
-      "Maison de coffrets à Ksar El Kebir. Dattes de plusieurs palmeraies et chocolat de couverture belge, composés avec vous. Coffrets cadeaux et dfou3 de mariage.",
+      "Maison de coffrets à Ksar El Kebir. Dattes de plusieurs palmeraies et chocolat de couverture belge, composés avec vous. Coffrets cadeaux, tablettes et packs d'événement.",
     ogAlt: "Le monogramme de Dar Tawil, or sur fond sombre",
   },
 
   nav: {
     maison: "La maison",
+    avis: "Vos avis",
     collections: "Collections",
     contact: "Contact",
     menu: "Menu",
@@ -20,89 +21,60 @@ export const fr = {
     title: "Ce que l'on offre\ndit ce que l'on est.",
     lede: "Dattes et chocolat de couverture belge, assemblés à la main dans des coffrets composés avec vous.",
     primary: "Voir les collections",
-    secondary: "Dfou3 de mariage",
+    secondary: "Lire vos avis",
     scroll: "Faire défiler",
   },
 
-  origins: {
-    eyebrow: "Ce que nous achetons",
-    title: "Plusieurs palmeraies, un atelier, une seule boîte.",
-    lede: "Rien dans un coffret Dar Tawil ne vient d'un seul endroit. Les dattes changent de variété et de palmeraie selon la saison ; la couverture vient de Belgique. Tout se rencontre ici.",
-    left: {
-      place: "Maroc — plusieurs palmeraies",
-      coord: "Selon la saison",
-      title: "Les dattes",
-      body: "Majhoul, Boufeggous, Bouittob, Nejda, Deglet Nour : nous achetons variété par variété, chez le producteur, au moment où chacune est à son point. Rien de traité au sucre, rien de réhydraté.",
-      photo: "Dattes fourrées aux noix de pécan et aux noisettes",
-    },
-    right: {
-      place: "Belgique — Wallonie",
-      coord: "Couverture 70 %",
-      title: "Le chocolat",
-      body: "Couverture belge à 70 % de cacao, tempérée à l'atelier. Une ganache pure, sans huile de palme et sans arôme ajouté, pour que la datte reste au premier plan.",
-      photo: "Bonbons de chocolat colorés dans leur coffret",
-    },
-  },
-
   collections: {
-    eyebrow: "La boutique",
-    title: "Des dattes, du chocolat. Le coffret, c'est vous.",
-    lede: "Ici, pas de coffrets tout faits. La boutique propose les dattes et les chocolats ; vous choisissez ce qui entre dedans, et nous montons votre coffret à la main.",
-    composition: "En boutique",
+    eyebrow: "Les collections",
+    title: "Des packs prêts à offrir. Ou le vôtre.",
+    lede: "Coffrets de bonbons, dattes, tablettes, packs d'événement : tout est monté à la main à l'atelier, et se commande directement sur WhatsApp.",
     cta: "Voir la gamme",
-    items: [
-      {
-        slug: "dattes",
-        name: "Les dattes",
-        line: "Par variété, selon la saison",
-        composition: "Plusieurs variétés de plusieurs palmeraies, qui changent avec la saison — nature, fourrées à la ganache ou enrobées de chocolat.",
-        note: "Goûtez-les en boutique avant de choisir.",
-        photo: "Coffret rond de dattes fourrées et enrobées",
-      },
-      {
-        slug: "chocolats",
-        name: "Les chocolats",
-        line: "Couverture belge",
-        composition: "Treize bonbons en chocolat de couverture belge, une couleur par parfum — de la corne de gazelle à la konafa pistache.",
-        note: "Choisissez-les un par un, ou laissez-nous choisir.",
-        photo: "Bonbons de chocolat colorés dans leur coffret",
-      },
-      {
-        slug: "dfou3",
-        name: "Dfou3 sur mesure",
-        line: "Pour les mariages",
-        composition: "Plateaux de présentation montés à vos couleurs, de 20 à 400 pièces",
-        note: "Demandez-nous un devis.",
-        photo: "Plateau de dfou3 dressé en boutique",
-      },
+    categories: {
+      boxChocolat: { line: "Couverture belge", note: "De la boîte dégustation au grand coffret, treize parfums au choix." },
+      dattes: { line: "Selon la saison", note: "Fourrées, enrobées ou nature, variété par variété." },
+      tablettes: { line: "Coulées à l'atelier", note: "Dubaï, citron, fruits rouges, et ce que la saison inspire." },
+      evenements: { line: "Fiançailles et fêtes", note: "Des packs pensés pour être présentés, à vos couleurs." },
+    },
+    featuredTitle: "Les préférés de la maison",
+    fromPrice: "À partir de {price} MAD",
+    priceOnRequest: "Prix sur demande",
+    gallery: [
+      "Dattes fourrées aux noix de pécan et aux noisettes",
+      "Coffret Dar Tawil",
+      "Coffret rond de dattes fourrées et enrobées",
+      "Bonbons de chocolat colorés",
+      "Plateau dressé en boutique",
+      "Bonbons de chocolat colorés dans leur coffret",
     ],
   },
 
-  dfou3: {
-    eyebrow: "Mariages",
-    title: "Les dfou3, tenus à la hauteur du jour.",
-    lede: "Les dfou3 sont les plateaux que les deux familles se présentent avant le mariage. Ils sont regardés, comptés, photographiés. Nous les montons pour qu'ils tiennent cet examen.",
-    body: "Nous travaillons avec la négafa ou directement avec la famille, à partir de la palette de la salle et du nombre d'invités. La composition, la boîte, le ruban et la marque sur le couvercle sont fixés avec vous avant de commencer.",
+  bespoke: {
+    eyebrow: "Sur mesure",
+    title: "Une occasion, un budget : nous composons.",
+    lede: "La plupart de nos commandes sont des compositions sur mesure. Dites-nous l'occasion, le nombre de pièces et le budget, et nous vous proposons un assemblage.",
+    body: "Fiançailles, naissance, Aïd, cadeaux d'entreprise : la composition, la boîte, le ruban et la marque sur le couvercle sont fixés avec vous avant de commencer.",
     points: [
       {
         title: "Vos couleurs",
-        body: "Boîtes et rubans appariés au thème de la soirée, du blanc cassé au vert de Fès.",
+        body: "Boîtes et rubans accordés au thème, du blanc cassé au vert de Fès.",
       },
       {
         title: "Marquage",
-        body: "Initiales des mariés et date, gravées ou dorées à chaud sur le couvercle.",
+        body: "Initiales, date ou logo, gravés ou dorés à chaud sur le couvercle.",
       },
       {
-        title: "De 20 à 400 plateaux",
-        body: "Montés en atelier la veille, jamais à l'avance.",
+        title: "De 20 à 400 pièces",
+        body: "Montées à l'atelier la veille, jamais à l'avance.",
       },
       {
-        title: "Livraison à la salle",
-        body: "Ksar El Kebir, Larache, Tanger. Dressés sur place si vous le souhaitez.",
+        title: "Livraison",
+        body: "Ksar El Kebir, Larache, Tanger. Dressé sur place si vous le souhaitez.",
       },
     ],
-    cta: "Parler de votre mariage",
-    lead: "Comptez six semaines entre le premier rendez-vous et la livraison.",
+    cta: "Demander une composition",
+    whatsappMessage: "Bonjour Dar Tawil, je voudrais une composition sur mesure :",
+    lead: "Pour les grandes quantités, prévenez-nous quelques semaines à l'avance.",
   },
 
   flavours: {
@@ -163,28 +135,13 @@ export const fr = {
 
   maisonPage: {
     eyebrow: "La maison",
-    title: "Dar Tawil veut dire la maison des Tawil.",
-    lede: "Une maison de famille devenue une maison de coffrets, sans changer beaucoup de méthode.",
+    title: "Dar Tawil, la maison du « tawil ».",
+    lede: "En darija, le « tawil » (التّاويل), c'est l'élégance, l'ordre, le bon goût et l'art de bien tenir une maison. Nous en avons fait notre nom, et notre méthode.",
     photo: "Portrait de l'atelier",
     body: [
-      "La maison est née d'une habitude domestique : à chaque fête, la famille Tawil montait ses propres plateaux plutôt que de les commander. Les dattes venaient du Sud, par un cousin. Le chocolat, lui, arrivait de Bruxelles dans les valises.",
+      "La maison est née d'une habitude domestique : à chaque fête, la famille montait ses propres plateaux plutôt que de les commander. Les dattes venaient du Sud, par un cousin. Le chocolat, lui, arrivait de Bruxelles dans les valises.",
       "En 2026, cette habitude est devenue un atelier sur l'avenue Mohammed V. La méthode n'a pas bougé : on achète peu, on achète bien, et on monte le jour même. Ce qui a changé, c'est que la table n'est plus seulement la nôtre.",
       "Nous ne vendons pas en grande surface et nous ne travaillons pas en marque blanche. Chaque coffret qui sort d'ici porte le monogramme, et nous préférons refuser une commande que la monter trop vite.",
-    ],
-    valuesTitle: "Trois règles que nous ne négocions pas",
-    values: [
-      {
-        title: "Le producteur, pas le grossiste",
-        body: "Nous achetons chez les producteurs, variété par variété, au prix de l'exploitation.",
-      },
-      {
-        title: "Rien qui allonge",
-        body: "Pas de sirop de glucose, pas d'huile de palme, pas de conservateur.",
-      },
-      {
-        title: "Monté, puis livré",
-        body: "Un coffret quitte l'atelier dans les quarante-huit heures de son montage.",
-      },
     ],
   },
 
@@ -237,17 +194,39 @@ export const fr = {
     customCta: "Demander une composition",
   },
 
+  avisPage: {
+    eyebrow: "Vos avis",
+    title: "Ce que vous nous écrivez.",
+    lede: "Des messages reçus sur WhatsApp et Instagram après une livraison, tels qu'ils nous sont arrivés — en darija, en français, parfois les deux dans la même phrase.",
+    quotes: [
+      { text: "Le goût exact du pistache.", gloss: "À propos de la konafa pistache." },
+      { text: "Les goûts kamlin wa3rin.", gloss: "« Tous les parfums sont excellents. »" },
+      { text: "Wallah c différent.", gloss: "« Je vous jure, c'est autre chose. »" },
+    ],
+    wallTitle: "Les messages, sans retouche",
+    wallNote: "Captures d'écran de nos conversations, publiées dans nos stories. Noms et photos de profil retirés.",
+    story: "En story",
+    messages: "Messages",
+    altPrefix: "Capture de messages de clients :",
+    ctaTitle: "Vous avez goûté ?",
+    ctaBody: "Un mot, une photo de votre coffret, une remarque : tout nous aide, et les meilleurs messages finissent ici.",
+    cta: "Nous envoyer votre avis",
+    whatsappMessage: "Bonjour Dar Tawil, voici mon avis sur ma commande :",
+    teaserLede: "Des messages reçus après une livraison, tels qu'ils sont arrivés — en darija, en français, parfois les deux dans la même phrase.",
+    teaserCta: "Lire tous les avis",
+  },
+
   contactPage: {
     eyebrow: "Contact",
     title: "Écrivez-nous.",
-    lede: "Pour une commande, un devis de mariage ou simplement une question sur une composition.",
+    lede: "Pour une commande, un devis pour un événement ou simplement une question sur une composition.",
     formTitle: "Votre message",
     fields: {
       name: "Nom",
       email: "E-mail",
       phone: "Téléphone",
       subject: "Objet",
-      subjectOptions: ["Un coffret", "Des dfou3 de mariage", "Une commande entreprise", "Autre"],
+      subjectOptions: ["Un coffret", "Un pack d'événement", "Une commande entreprise", "Autre"],
       message: "Message",
       messagePlaceholder: "Dites-nous l'occasion, la date et le nombre de pièces.",
       sendWhatsapp: "Envoyer sur WhatsApp",

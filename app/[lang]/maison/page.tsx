@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Photo } from "@/components/photo";
-import { StarRule } from "@/components/ornament";
-import { CtaPrimary, PageHeader, Section, Title } from "@/components/ui";
+import { CtaPrimary, PageHeader, Section } from "@/components/ui";
 import type { Locale } from "@/lib/locales";
 import { photos } from "@/lib/photos";
 import { getDictionary } from "../dictionaries";
@@ -49,30 +48,6 @@ export default async function MaisonPage({ params }: PageProps<"/[lang]/maison">
               </p>
             ))}
           </div>
-        </div>
-
-        <StarRule className="mt-24 md:mt-32" />
-
-        <div className="mt-20 md:mt-28">
-          <div data-reveal>
-            <Title className="max-w-[22ch]">{t.maisonPage.valuesTitle}</Title>
-          </div>
-
-          <dl className="mt-14 grid gap-px bg-or/22 md:grid-cols-3">
-            {t.maisonPage.values.map((value, i) => (
-              <div
-                key={value.title}
-                data-reveal
-                data-reveal-delay={i * 110}
-                className="bg-noir p-9"
-              >
-                <dt className="monument text-xl text-or-clair">{value.title}</dt>
-                <dd className="mt-4 text-[0.95rem] leading-[1.8] text-ivoire/60">
-                  {value.body}
-                </dd>
-              </div>
-            ))}
-          </dl>
         </div>
 
         <div data-reveal className="mt-20 flex justify-center md:mt-24">

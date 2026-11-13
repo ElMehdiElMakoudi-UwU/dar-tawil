@@ -2,15 +2,11 @@
  * Every image slot on the site, in one place.
  *
  * Drop the file in `public/photos/` and set the path here — e.g.
- *   originLeft: "/photos/palmeraie-ziz.jpg"
+ *   visit: "/photos/boutique.jpg"
  * An empty string leaves the labelled placeholder plate in place, so the site
  * stays presentable while the photography is being shot.
  */
 export const photos = {
-  /** Palm grove at harvest — home, "Deux origines", left arch. */
-  originLeft: "/photos/dattes-detail.jpg",
-  /** Belgian couverture being tempered — home, "Deux origines", right arch. */
-  originRight: "/photos/bonbons-detail.jpg",
   /** Shopfront or interior — home, "Passez à la boutique". */
   visit: "/photos/boutique-plateau.jpg",
   /** The workshop or the founders — La maison. */
@@ -24,10 +20,11 @@ export const photos = {
     "/photos/boutique-plateau.jpg",
     "/photos/bonbons-coffret.jpg",
   ],
-  /** One per product line, keyed by slug — Collections page. */
-  range: {
-    dattes: "/photos/dattes-coffret-rond.jpg",
-    chocolats: "/photos/bonbons-coffret.jpg",
-    dfou3: "/photos/boutique-plateau.jpg",
-  } as Record<string, string>,
+  /** One per catalog category — home, "Les collections" tray. On white, like the pack photos. */
+  categories: {
+    boxChocolat: "/photos/packs/degustation.jpg",
+    dattes: "/photos/packs/dattes-prestige.jpg",
+    tablettes: "/photos/packs/tablette-dubai.jpg",
+    evenements: "/photos/packs/fiancailles-2.jpg",
+  },
 };

@@ -1,7 +1,9 @@
+import Image from "next/image";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Bonbon } from "@/components/bonbon";
 import { Mark, Wordmark } from "@/components/mark";
-import { Cubes, Khatem, Lattice, StarRule } from "@/components/ornament";
+import { Cubes, Lattice, StarRule } from "@/components/ornament";
 import { Photo } from "@/components/photo";
 import { Procession, Ribbon } from "@/components/procession";
 import {
@@ -12,7 +14,9 @@ import {
   Section,
   Title,
 } from "@/components/ui";
+import { categories, getCatalog, type Pack } from "@/lib/catalog";
 import type { Locale } from "@/lib/locales";
+import { reviews } from "@/lib/reviews";
 import { whatsappLink } from "@/lib/site";
 import { flavours } from "@/lib/flavours";
 import { photos } from "@/lib/photos";
@@ -32,46 +36,28 @@ function Words({ text, start }: { text: string; start: number }) {
   ));
 }
 
-type OriginCopy = {
-  place: string;
-  coord: string;
-  title: string;
-  body: string;
-  photo: string;
-};
+const priceNumber = new Intl.NumberFormat("fr-FR");
 
-function Origin({
-  origin,
-  src,
-  pending,
-  delay = 0,
-}: {
-  origin: OriginCopy;
-  src: string;
-  pending: string;
-  delay?: number;
-}) {
-  return (
-    <div data-reveal data-reveal-delay={delay}>
-      <Photo
-        src={src || undefined}
-        alt={origin.photo}
-        caption={origin.photo}
-        pending={pending}
-        className="aspect-[3/4] w-full"
-      />
-      <div className="mt-8 flex items-baseline justify-between gap-4 border-b border-or/20 pb-3">
-        <span className="eyebrow">{origin.place}</span>
-        <span className="font-body text-[0.72rem] tracking-[0.18em] text-ivoire/40">
-          {origin.coord}
-        </span>
-      </div>
-      <h3 className="monument mt-6 text-2xl text-or-clair md:text-3xl">{origin.title}</h3>
-      <p className="mt-4 max-w-[42ch] text-[0.95rem] leading-[1.8] text-ivoire/60">
-        {origin.body}
-      </p>
-    </div>
-  );
+/**
+ * Up to three packs for the home page: the featured ones first, then one per
+ * category so the row shows the range rather than three of a kind. The
+ * database may be unreachable (a fresh checkout, a build): the row is then
+ * simply left out.
+ */
+async function getPicks(lang: Locale): Promise<Pack[]> {
+  let packs: Pack[];
+  try {
+    packs = await getCatalog(lang);
+  } catch {
+    return [];
+  }
+  const picks = packs.filter((p) => p.featured).slice(0, 3);
+  for (const category of categories) {
+    if (picks.length >= 3) break;
+    const next = packs.find((p) => p.category === category && !picks.includes(p));
+    if (next) picks.push(next);
+  }
+  return picks;
 }
 
 export default async function HomePage({ params }: PageProps<"/[lang]">) {
@@ -80,6 +66,10 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
   const l = lang as Locale;
   const [line1, line2] = t.hero.title.split("\n");
   const blanc = palette === "blanc";
+  // Rendered per request: the packs are edited live in /gestion.
+  await connection();
+  const picks = await getPicks(l);
+  const boardReviews = reviews.slice(0, 2);
 
   return (
     <>
@@ -165,7 +155,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
             style={{ animationDelay: "500ms" }}
           >
             <CtaPrimary href={`/${l}/collections`}>{t.hero.primary}</CtaPrimary>
-            <CtaGhost href={`/${l}/contact`}>{t.hero.secondary}</CtaGhost>
+            <CtaGhost href={`/${l}/avis`}>{t.hero.secondary}</CtaGhost>
           </div>
 
           <div
@@ -181,52 +171,13 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
         </div>
       </section>
 
-      {/* ── What the shop holds, drifting past like the band round a lid ── */}
+      {/* ── The bonbon flavours, drifting past like the band round a lid ── */}
       <Ribbon
         className="border-y border-or/20 py-7 md:py-9"
-        items={[
-          ...t.collectionsPage.varieties.names,
-          ...flavours.slice(0, 6).map((f) => t.flavours.items[f.slug].name),
-        ]}
+        items={flavours.map((f) => t.flavours.items[f.slug].name)}
       />
 
-      {/* ── Two origins, 2 400 km apart, facing each other ── */}
-      <Section className="border-t border-or/15">
-        <div data-reveal className="max-w-[60ch]">
-          <Eyebrow>{t.origins.eyebrow}</Eyebrow>
-          <Title className="mt-5">{t.origins.title}</Title>
-          <Lede className="mt-7">{t.origins.lede}</Lede>
-        </div>
-
-        <div className="mt-16 grid items-start gap-12 md:mt-24 md:grid-cols-[1fr_auto_1fr] md:gap-10">
-          {/* left origin — star — right origin, in that order, so the two
-              sides read as meeting in the middle at any width */}
-          <Origin
-            origin={t.origins.left}
-            src={photos.originLeft}
-            pending={t.ui.photoPending}
-          />
-
-          <div
-            data-reveal
-            data-reveal-delay="80"
-            className="flex items-center gap-5 md:flex-col md:justify-center md:self-stretch"
-          >
-            <span className="h-px flex-1 bg-or/25 md:h-auto md:w-px md:flex-1" />
-            <Khatem size={30} className="mx-2 my-2 text-or/70" />
-            <span className="h-px flex-1 bg-or/25 md:h-auto md:w-px md:flex-1" />
-          </div>
-
-          <Origin
-            origin={t.origins.right}
-            src={photos.originRight}
-            pending={t.ui.photoPending}
-            delay={140}
-          />
-        </div>
-      </Section>
-
-      {/* ── The shop: dates and chocolates, laid out as the tray inside a coffret ── */}
+      {/* ── The collections: four doors into the catalog, then the house's picks ── */}
       <Section className="border-t border-or/15">
         <div
           data-reveal
@@ -239,66 +190,162 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
           <Lede className="md:justify-self-end">{t.collections.lede}</Lede>
         </div>
 
-        <div
+        <ul
           data-reveal
-          className="mt-14 grid gap-px bg-or/25 md:mt-20 md:grid-cols-12"
-          style={{ gridAutoRows: "minmax(0, auto)" }}
+          className="mt-14 grid gap-px bg-or/25 sm:grid-cols-2 md:mt-20 lg:grid-cols-4"
         >
-          {t.collections.items.map((item, i) => {
-            const isDfou3 = item.slug === "dfou3";
-            const span = ["md:col-span-6", "md:col-span-6", "md:col-span-12"][i];
-
+          {categories.map((category) => {
+            const copy = t.collections.categories[category];
             return (
-              <Link
-                key={item.slug}
-                href={isDfou3 ? `/${l}/contact` : `/${l}/collections`}
-                className={`tile group relative flex min-h-[15rem] flex-col justify-between px-6 py-8 transition-colors duration-500 md:p-9 ${span} ${
-                  isDfou3
-                    ? "panel-accent hover:bg-accent-hover"
-                    : "bg-noir hover:bg-brou"
-                }`}
-              >
-                <div>
-                  <p className="eyebrow">{item.line}</p>
-                  <h3
-                    className={`monument mt-4 text-[1.7rem] md:text-[2.1rem] ${
-                      isDfou3 ? "" : "text-ivoire"
-                    }`}
-                  >
-                    {item.name}
+              <li key={category} className="bg-noir">
+                <Link
+                  href={`/${l}/collections#${category}`}
+                  className="tile group relative flex h-full flex-col px-6 pb-8 pt-6 transition-colors duration-500 hover:bg-brou md:px-7"
+                >
+                  <div className="relative aspect-[4/5] overflow-hidden bg-white">
+                    <Image
+                      src={photos.categories[category]}
+                      alt={t.collectionsPage.categories[category]}
+                      fill
+                      sizes="(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 22vw"
+                      className="object-contain transition-[scale] duration-[1.2s] ease-[var(--ease-lantern)] group-hover:scale-[1.04]"
+                    />
+                  </div>
+                  <p className="eyebrow mt-7">{copy.line}</p>
+                  <h3 className="monument mt-3 text-[1.5rem] text-ivoire md:text-[1.65rem]">
+                    {t.collectionsPage.categories[category]}
                   </h3>
-                </div>
-
-                <div className="mt-10">
-                  <p
-                    className={`text-[0.72rem] uppercase tracking-[0.2em] ${
-                      isDfou3 ? "on-accent-dim" : "text-or/70"
-                    }`}
-                  >
-                    {t.collections.composition}
+                  <p className="mt-3 max-w-[34ch] text-[0.9rem] leading-[1.7] text-ivoire/60">
+                    {copy.note}
                   </p>
-                  <p
-                    className={`mt-2.5 max-w-[42ch] text-[0.92rem] leading-[1.7] ${
-                      isDfou3 ? "on-accent-dim" : "text-ivoire/60"
-                    }`}
+                  <span
+                    aria-hidden
+                    className="mt-auto pt-6 text-or transition-transform duration-300 group-hover:translate-x-1 rtl:rotate-180 rtl:group-hover:-translate-x-1"
                   >
-                    {item.composition}
-                  </p>
-                  <p
-                    className={`mt-5 max-w-[40ch] font-display text-[0.98rem] leading-snug ${
-                      isDfou3 ? "on-accent-em" : "text-or-clair/70"
-                    }`}
-                  >
-                    {item.note}
-                  </p>
-                </div>
-              </Link>
+                    →
+                  </span>
+                </Link>
+              </li>
             );
           })}
-        </div>
+        </ul>
 
-        <div data-reveal className="mt-12 flex justify-center">
-          <CtaGhost href={`/${l}/collections`}>{t.collections.cta}</CtaGhost>
+        {picks.length > 0 ? (
+          <div className="mt-20 md:mt-28">
+            <div data-reveal className="cat-head relative flex items-baseline gap-5 pb-5">
+              <h3 className="monument text-[clamp(1.4rem,2.6vw,1.9rem)] text-ivoire">
+                {t.collections.featuredTitle}
+              </h3>
+              <span aria-hidden className="cat-rule absolute inset-x-0 bottom-0 h-px" />
+            </div>
+            <ul className="mt-10 grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-10">
+              {picks.map((pack, i) => {
+                const prices = pack.variants
+                  .map((v) => v.price)
+                  .filter((p): p is number => p !== null);
+                const price = prices.length
+                  ? t.collections.fromPrice.replace(
+                      "{price}",
+                      priceNumber.format(Math.min(...prices)),
+                    )
+                  : t.collections.priceOnRequest;
+                return (
+                  <li key={pack.id} data-reveal data-reveal-delay={i * 140}>
+                    <Link href={`/${l}/collections#${pack.category}`} className="pack group/pack block">
+                      <div className="pack-frame relative aspect-[4/5] overflow-hidden bg-white">
+                        <Image
+                          src={pack.variants[0].images[0]}
+                          alt={pack.name}
+                          fill
+                          sizes="(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 30vw"
+                          className="pack-img object-contain"
+                        />
+                        {pack.featured ? (
+                          <span className="absolute start-3 top-3 bg-or px-3 py-1.5 text-[0.62rem] font-medium uppercase tracking-[0.18em] text-noir">
+                            {t.collectionsPage.featuredBadge}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="eyebrow mt-6">{t.collectionsPage.categories[pack.category]}</p>
+                      <h4 className="mt-2 font-display text-[1.4rem] leading-tight text-ivoire transition-colors duration-500 group-hover/pack:text-or-profond">
+                        {pack.name}
+                      </h4>
+                      <span aria-hidden className="pack-underline mt-3 block h-px w-12 bg-or/60" />
+                      <p className="mt-4 font-display text-[1.1rem] text-or-profond">{price}</p>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
+
+        <div data-reveal className="mt-14 flex justify-center md:mt-16">
+          <CtaPrimary href={`/${l}/collections`}>{t.collections.cta}</CtaPrimary>
+        </div>
+      </Section>
+
+      {/* ── In the customers' own words: three lines, two screenshots ── */}
+      <Section className="border-t border-or/15">
+        <div className="grid items-center gap-16 md:grid-cols-[1.05fr_0.95fr] md:gap-20">
+          <div>
+            <div data-reveal>
+              <Eyebrow>{t.avisPage.eyebrow}</Eyebrow>
+              <Title className="mt-5">{t.avisPage.title}</Title>
+              <Lede className="mt-7">{t.avisPage.teaserLede}</Lede>
+            </div>
+
+            <ul className="mt-12 divide-y divide-or/20 border-y border-or/20">
+              {t.avisPage.quotes.map((q, i) => (
+                <li
+                  key={q.text}
+                  data-reveal
+                  data-reveal-delay={i * 110}
+                  className="flex gap-5 py-6"
+                >
+                  <span aria-hidden className="font-display text-4xl leading-none text-or/50">
+                    “
+                  </span>
+                  <div>
+                    <blockquote
+                      dir="auto"
+                      className="font-display text-[1.3rem] leading-snug text-ivoire"
+                    >
+                      {q.text}
+                    </blockquote>
+                    <p className="mt-2 text-[0.88rem] leading-relaxed text-ivoire/55">{q.gloss}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <div data-reveal className="mt-10">
+              <CtaGhost href={`/${l}/avis`}>{t.avisPage.teaserCta}</CtaGhost>
+            </div>
+          </div>
+
+          {/* Two screenshots pinned to the board, overlapping. */}
+          <div data-reveal data-reveal-delay="120" className="relative mx-auto w-full max-w-[30rem] pb-10">
+            {boardReviews.map((r, i) => (
+              <figure
+                key={r.src}
+                className={`border border-or/30 bg-brou p-2.5 shadow-[0_18px_40px_-24px_rgb(60_40_20/0.45)] transition-transform duration-500 ease-[var(--ease-lantern)] hover:z-10 hover:rotate-0 ${
+                  i === 0
+                    ? "relative w-[78%] -rotate-[1.6deg]"
+                    : "absolute bottom-0 end-0 w-[56%] rotate-[2.2deg]"
+                }`}
+              >
+                <Image
+                  src={r.src}
+                  width={r.width}
+                  height={r.height}
+                  alt={`${t.avisPage.altPrefix} ${r.transcript.join(" — ")}`}
+                  sizes="(max-width: 768px) 70vw, 24rem"
+                  className="h-auto w-full"
+                />
+              </figure>
+            ))}
+          </div>
         </div>
       </Section>
 
@@ -357,22 +404,15 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
         <Procession
           slides={photos.gallery.map((src, i) => ({
             src,
-            alt: [
-              t.origins.left.photo,
-              t.collections.items[1].photo,
-              t.collections.items[0].photo,
-              t.origins.right.photo,
-              t.collections.items[2].photo,
-              t.collections.items[1].photo,
-            ][i],
+            alt: t.collections.gallery[i] ?? "",
           }))}
         />
       </section>
 
-      {/* ── Dfou3 ── */}
+      {/* ── Made to order: the inverted panel ── */}
       <section className="panel-accent relative overflow-hidden px-5 py-24 md:px-10 md:py-32">
         <Lattice
-          id="lattice-dfou3"
+          id="lattice-bespoke"
           /* one tile (120 × 1.1) of slack each side, so the slow drift loops seamlessly */
           className={`lattice-drift pointer-events-none absolute -left-[132px] -top-[132px] h-[calc(100%+264px)] w-[calc(100%+264px)] ${
             blanc ? "text-on-accent-eyebrow/[0.12]" : "text-on-accent-title/[0.09]"
@@ -381,16 +421,18 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
         />
         <div className="relative mx-auto grid max-w-[82rem] gap-14 md:grid-cols-2 md:gap-20">
           <div data-reveal>
-            <Eyebrow>{t.dfou3.eyebrow}</Eyebrow>
-            <Title className="mt-5">{t.dfou3.title}</Title>
-            <Lede className="on-accent-dim mt-7">{t.dfou3.lede}</Lede>
+            <Eyebrow>{t.bespoke.eyebrow}</Eyebrow>
+            <Title className="mt-5">{t.bespoke.title}</Title>
+            <Lede className="on-accent-dim mt-7">{t.bespoke.lede}</Lede>
             <p className="on-accent-dim mt-5 max-w-[54ch] text-[0.95rem] leading-[1.8] opacity-85">
-              {t.dfou3.body}
+              {t.bespoke.body}
             </p>
             <div className="mt-10">
-              <CtaPrimary href={`/${l}/contact`}>{t.dfou3.cta}</CtaPrimary>
+              <CtaPrimary href={whatsappLink(t.bespoke.whatsappMessage)} external>
+                {t.bespoke.cta}
+              </CtaPrimary>
             </div>
-            <p className="on-accent-dim mt-6 text-[0.82rem] opacity-80">{t.dfou3.lead}</p>
+            <p className="on-accent-dim mt-6 text-[0.82rem] opacity-80">{t.bespoke.lead}</p>
           </div>
 
           <dl
@@ -398,7 +440,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
             data-reveal-delay="120"
             className="grid gap-px self-start bg-on-accent/20 sm:grid-cols-2"
           >
-            {t.dfou3.points.map((point) => (
+            {t.bespoke.points.map((point) => (
               <div key={point.title} className="bg-accent p-7">
                 <dt className="monument on-accent-em text-lg">{point.title}</dt>
                 <dd className="on-accent-dim mt-3 text-[0.9rem] leading-[1.75]">
