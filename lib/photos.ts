@@ -10,7 +10,7 @@ export const photos = {
   /** Shopfront or interior — home, "Passez à la boutique". */
   visit: "/photos/boutique-plateau.jpg",
   /** The workshop or the founders — La maison. */
-  maison: "",
+  maison: "/photos/boutique-interieur.jpg",
   /** The drifting procession of arches on the home page, in order. */
   gallery: [
     "/photos/dattes-detail.jpg",

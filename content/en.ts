@@ -139,7 +139,7 @@ export const en: Dictionary = {
     eyebrow: "The house",
     title: "Dar Tawil, the house of “tawil”.",
     lede: "In Moroccan darija, “tawil” (التّاويل) means elegance, order, good taste and the art of keeping a house well. We made it our name, and our method.",
-    photo: "Portrait of the workshop",
+    photo: "The shop on Avenue Mohammed V",
     body: [
       "The house began as a domestic habit: for every celebration, the family built its own trays rather than ordering them. The dates came from the south, through a cousin. The chocolate came from Brussels, in suitcases.",
       "In 2026 the habit became a workshop on Avenue Mohammed V. The method has not moved: buy little, buy well, build the same day. What changed is that the table is no longer only ours.",

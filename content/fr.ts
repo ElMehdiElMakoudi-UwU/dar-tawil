@@ -137,7 +137,7 @@ export const fr = {
     eyebrow: "La maison",
     title: "Dar Tawil, la maison du « tawil ».",
     lede: "En darija, le « tawil » (التّاويل), c'est l'élégance, l'ordre, le bon goût et l'art de bien tenir une maison. Nous en avons fait notre nom, et notre méthode.",
-    photo: "Portrait de l'atelier",
+    photo: "La boutique, avenue Mohammed V",
     body: [
       "La maison est née d'une habitude domestique : à chaque fête, la famille montait ses propres plateaux plutôt que de les commander. Les dattes venaient du Sud, par un cousin. Le chocolat, lui, arrivait de Bruxelles dans les valises.",
       "En 2026, cette habitude est devenue un atelier sur l'avenue Mohammed V. La méthode n'a pas bougé : on achète peu, on achète bien, et on monte le jour même. Ce qui a changé, c'est que la table n'est plus seulement la nôtre.",
