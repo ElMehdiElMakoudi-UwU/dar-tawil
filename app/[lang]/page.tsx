@@ -14,7 +14,7 @@ import {
   Section,
   Title,
 } from "@/components/ui";
-import { categories, getCatalog, type Pack } from "@/lib/catalog";
+import { getCatalog, getCategoryRows, localized, type Pack } from "@/lib/catalog";
 import type { Locale } from "@/lib/locales";
 import { reviews } from "@/lib/reviews";
 import { whatsappLink } from "@/lib/site";
@@ -39,25 +39,35 @@ function Words({ text, start }: { text: string; start: number }) {
 const priceNumber = new Intl.NumberFormat("fr-FR");
 
 /**
- * Up to three packs for the home page: the featured ones first, then one per
- * category so the row shows the range rather than three of a kind. The
- * database may be unreachable (a fresh checkout, a build): the row is then
- * simply left out.
+ * The rubriques that get a door on the home page, each with its own photo
+ * (lib/photos.ts) and lines (content/*.ts collections.categories). Rubriques
+ * added later in /gestion appear on the Collections page only.
  */
-async function getPicks(lang: Locale): Promise<Pack[]> {
+const doors = ["boxChocolat", "dattes", "tablettes", "evenements"] as const;
+
+/**
+ * The rubrique names, and up to three packs for the home page: the featured
+ * ones first, then one per rubrique so the row shows the range rather than
+ * three of a kind. The database may be unreachable (a fresh checkout, a
+ * build): the doors and the row are then simply left out.
+ */
+async function getHome(lang: Locale): Promise<{ names: Map<string, string>; picks: Pack[] }> {
   let packs: Pack[];
+  let names: Map<string, string>;
   try {
-    packs = await getCatalog(lang);
+    const [p, cats] = await Promise.all([getCatalog(lang), getCategoryRows()]);
+    packs = p;
+    names = new Map(cats.map((c) => [c.slug, localized(c, "name", lang)]));
   } catch {
-    return [];
+    return { names: new Map(), picks: [] };
   }
   const picks = packs.filter((p) => p.featured).slice(0, 3);
-  for (const category of categories) {
+  for (const category of names.keys()) {
     if (picks.length >= 3) break;
     const next = packs.find((p) => p.category === category && !picks.includes(p));
     if (next) picks.push(next);
   }
-  return picks;
+  return { names, picks };
 }
 
 export default async function HomePage({ params }: PageProps<"/[lang]">) {
@@ -68,7 +78,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
   const blanc = palette === "blanc";
   // Rendered per request: the packs are edited live in /gestion.
   await connection();
-  const picks = await getPicks(l);
+  const { names, picks } = await getHome(l);
   const boardReviews = reviews.slice(0, 2);
 
   return (
@@ -194,8 +204,9 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
           data-reveal
           className="mt-14 grid gap-px bg-or/25 sm:grid-cols-2 md:mt-20 lg:grid-cols-4"
         >
-          {categories.map((category) => {
+          {doors.filter((category) => names.has(category)).map((category) => {
             const copy = t.collections.categories[category];
+            const name = names.get(category)!;
             return (
               <li key={category} className="bg-noir">
                 <Link
@@ -205,7 +216,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
                   <div className="relative aspect-[4/5] overflow-hidden bg-white">
                     <Image
                       src={photos.categories[category]}
-                      alt={t.collectionsPage.categories[category]}
+                      alt={name}
                       fill
                       sizes="(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 22vw"
                       className="object-contain transition-[scale] duration-[1.2s] ease-[var(--ease-lantern)] group-hover:scale-[1.04]"
@@ -213,7 +224,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
                   </div>
                   <p className="eyebrow mt-7">{copy.line}</p>
                   <h3 className="monument mt-3 text-[1.5rem] text-ivoire md:text-[1.65rem]">
-                    {t.collectionsPage.categories[category]}
+                    {name}
                   </h3>
                   <p className="mt-3 max-w-[34ch] text-[0.9rem] leading-[1.7] text-ivoire/60">
                     {copy.note}
@@ -266,7 +277,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
                           </span>
                         ) : null}
                       </div>
-                      <p className="eyebrow mt-6">{t.collectionsPage.categories[pack.category]}</p>
+                      <p className="eyebrow mt-6">{names.get(pack.category)}</p>
                       <h4 className="mt-2 font-display text-[1.4rem] leading-tight text-ivoire transition-colors duration-500 group-hover/pack:text-or-profond">
                         {pack.name}
                       </h4>
