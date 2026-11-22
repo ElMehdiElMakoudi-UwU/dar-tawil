@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { CartProvider } from "@/components/cart";
 import { StarRule } from "@/components/ornament";
-import { PackCard } from "@/components/pack-card";
+import { ComposeCard, PackCard } from "@/components/pack-card";
 import { CtaPrimary, Lede, PageHeader, Section, Title } from "@/components/ui";
 import { getCatalogSections } from "@/lib/catalog";
 import type { Locale } from "@/lib/locales";
@@ -33,6 +33,7 @@ export default async function CollectionsPage({
     priceFormat: c.priceFormat,
     priceOnRequest: c.priceOnRequest,
     sizeLabel: c.sizeLabel,
+    compose: c.compose,
     addToCart: c.addToCart,
     added: c.added,
     quantity: c.cart.quantity,
@@ -86,8 +87,10 @@ export default async function CollectionsPage({
               </div>
 
               <div className="mt-10 grid gap-x-8 gap-y-16 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-10">
-                {packs.map((pack, i) => (
-                  <PackCard
+                {packs.map((pack, i) => {
+                  const Card = pack.composable ? ComposeCard : PackCard;
+                  return (
+                  <Card
                     key={pack.id}
                     name={pack.name}
                     description={pack.description}
@@ -97,7 +100,8 @@ export default async function CollectionsPage({
                     priority={s === 0 && i < 3}
                     index={i}
                   />
-                ))}
+                  );
+                })}
               </div>
             </section>
           ))}

@@ -26,6 +26,7 @@ export type AdminPack = {
   position: number;
   category: Category;
   featured: boolean;
+  composable: boolean;
   visible: boolean;
   name_fr: string;
   name_en: string | null;

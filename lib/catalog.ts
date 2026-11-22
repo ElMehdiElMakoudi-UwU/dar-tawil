@@ -29,6 +29,8 @@ export type Pack = {
   id: number;
   category: Category;
   featured: boolean;
+  /** The visitor sets a quantity per variant (macarons) instead of picking one. */
+  composable: boolean;
   name: string;
   description: string;
   variants: PackVariant[];
@@ -51,7 +53,7 @@ export const imageUrl = (img: { id: number; src: string | null }) => img.src ?? 
  */
 export async function getCatalog(lang: Locale): Promise<Pack[]> {
   const [packs, variants, images] = await Promise.all([
-    sql<({ id: number; category: Category; featured: boolean } & Texts)[]>`
+    sql<({ id: number; category: Category; featured: boolean; composable: boolean } & Texts)[]>`
       select * from catalog_packs where visible order by featured desc, position, id`,
     sql<({ id: number; pack_id: number; price: number | null } & LabelTexts)[]>`
       select v.* from catalog_variants v join catalog_packs p on p.id = v.pack_id
@@ -70,6 +72,7 @@ export async function getCatalog(lang: Locale): Promise<Pack[]> {
       id: p.id,
       category: p.category,
       featured: p.featured,
+      composable: p.composable,
       name: localized(p, "name", lang),
       description: localized(p, "description", lang),
       variants: (variantsOf.get(p.id) ?? [])

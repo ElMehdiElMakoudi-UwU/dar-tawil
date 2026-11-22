@@ -161,6 +161,12 @@ export const fr = {
     priceFormat: "{price} MAD",
     priceOnRequest: "Prix sur demande",
     sizeLabel: "Taille",
+    compose: {
+      label: "Parfums",
+      hint: "Choisissez vos parfums et leurs quantités.",
+      count: "{n} pièces",
+      empty: "Choisissez au moins un parfum",
+    },
     addToCart: "Ajouter au panier",
     added: "Ajouté",
     slider: { prev: "Photo précédente", next: "Photo suivante", photo: "Photo {n} sur {total}" },

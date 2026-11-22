@@ -361,11 +361,14 @@ export function QtyStepper({
   onChange,
   labels,
   label,
+  min = 1,
 }: {
   value: number;
   onChange: (qty: number) => void;
   labels: Pick<CartLabels, "decrease" | "increase">;
   label: string;
+  /** 0 lets a flavour of a composed pack be left out. */
+  min?: number;
 }) {
   const btn =
     "grid size-11 place-items-center text-ivoire/80 transition-colors hover:text-or-profond disabled:pointer-events-none disabled:opacity-30";
@@ -374,7 +377,7 @@ export function QtyStepper({
       <button
         type="button"
         aria-label={labels.decrease}
-        disabled={value <= 1}
+        disabled={value <= min}
         onClick={() => onChange(value - 1)}
         className={btn}
       >
@@ -385,11 +388,11 @@ export function QtyStepper({
       <input
         type="number"
         inputMode="numeric"
-        min={1}
+        min={min}
         max={MAX_QTY}
         value={value}
         aria-label={label}
-        onChange={(e) => onChange(clamp(Number(e.target.value)))}
+        onChange={(e) => onChange(Math.max(min, Math.min(MAX_QTY, Math.round(Number(e.target.value)) || min)))}
         onFocus={(e) => e.target.select()}
         className="h-11 w-10 bg-transparent text-center font-display text-[1rem] text-ivoire [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />

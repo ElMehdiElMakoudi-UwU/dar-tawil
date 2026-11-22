@@ -89,6 +89,10 @@ export default async function EditPackPage({ params }: PageProps<"/gestion/admin
               <input type="checkbox" name="featured" defaultChecked={pack.featured} className="size-4 accent-[var(--color-accent)]" />
               {t.catalog.showFeatured}
             </label>
+            <label className="flex min-h-10 items-center gap-2">
+              <input type="checkbox" name="composable" defaultChecked={pack.composable} className="size-4 accent-[var(--color-accent)]" />
+              {t.catalog.showComposable}
+            </label>
           </div>
           <div className="mt-4">
             <Submit>{t.common.save}</Submit>

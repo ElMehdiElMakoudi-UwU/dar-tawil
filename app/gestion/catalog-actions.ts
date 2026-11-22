@@ -154,6 +154,7 @@ export async function savePack(_: FormState, fd: FormData): Promise<FormState> {
       ...texts(fd, "description"),
       category: cat,
       featured: checked(fd, "featured"),
+      composable: checked(fd, "composable"),
       visible: checked(fd, "visible"),
     };
     const rows = await sql`update catalog_packs set ${sql(values)} where id = ${packId}`;
