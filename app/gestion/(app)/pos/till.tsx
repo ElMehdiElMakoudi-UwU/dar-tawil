@@ -11,7 +11,8 @@ type Product = {
   alt_unit: string | null; alt_factor: number | null; alt_price: number | null;
   variants: Variant[];
 };
-type Variant = { label: string; price: number };
+/** weight: how much stock one piece uses, in the product's stock unit. */
+type Variant = { label: string; price: number; weight: number };
 /**
  * qty is typed text so weights like 0.35 can be keyed in; alt = sold in the product's second unit.
  * variant: the sub-product's label ("" = none). key tells lines apart: one product can sit in the
@@ -78,8 +79,12 @@ export function Till({
   const lineTotal = (l: Line) => num(l.qty) * num(l.unitPrice) * (1 - num(l.discount) / 100);
   const total = lines.reduce((s, l) => s + lineTotal(l), 0);
   /** How much of the product's stock a line uses, in its stock unit. */
-  const stockUsed = (l: Line) => num(l.qty) * (l.alt ? byId.get(l.productId)?.alt_factor ?? 1 : 1);
-  const unitOf = (l: Line, p: Product) => (l.alt ? p.alt_unit! : p.unit);
+  const stockUsed = (l: Line) => {
+    const p = byId.get(l.productId);
+    const factor = l.variant ? p?.variants.find((v) => v.label === l.variant)?.weight : l.alt ? p?.alt_factor : 1;
+    return num(l.qty) * (factor ?? 1);
+  };
+  const unitOf = (l: Line, p: Product) => (l.variant ? "pc" : l.alt ? p.alt_unit! : p.unit);
   const isCash = /cash|esp[eè]ce|نقد/i.test(payment) && !/delivery|livraison|توصيل/i.test(payment);
   const given = num(tendered);
   const change = given - total;

@@ -34,7 +34,8 @@ export const linesTotal = (lines: Line[]) => lines.reduce((s, l) => s + l.qty * 
 /**
  * Writes the lines of one sale under `no` (a fresh one when omitted) and
  * returns it. Unit, factor and unit_cost come from the product here; staff
- * never send or see the cost. unit_cost is per unit sold.
+ * never send or see the cost. unit_cost is per unit sold. A variant line is
+ * counted in pieces, each using the variant's weight of stock.
  */
 export async function insertSale(
   tx: TransactionSql<any>,
@@ -48,20 +49,25 @@ export async function insertSale(
   const keep = sale.keepArchived?.length ? sale.keepArchived : [0];
   const no = sale.no ?? (await tx<{ no: string }[]>`select 'O' || lpad(nextval('order_seq')::text, 5, '0') as no`)[0].no;
   for (const l of sale.lines) {
-    const alt = l.alt === true;
+    // A variant is a piece of its own weight: it overrides the second unit.
+    const variant = l.variant ?? null;
+    const alt = !variant && l.alt === true;
     const inserted = await tx`
       insert into sales (date, order_no, customer_id, channel, product_id, variant, qty, unit, factor, unit_price, discount_pct, unit_cost, payment, paid, created_by)
-      select ${sale.day}, ${no}, ${sale.customerId}, ${sale.channel}, p.id, ${l.variant ?? null}, ${l.qty}, u.unit, u.factor, ${l.unitPrice}, ${l.discount},
+      select ${sale.day}, ${no}, ${sale.customerId}, ${sale.channel}, p.id, ${variant}, ${l.qty}, u.unit, u.factor, ${l.unitPrice}, ${l.discount},
              round(p.unit_cost * u.factor, 4), ${sale.payment}, ${sale.paid}, ${sale.userId}
       from products p
+      left join product_variants v on v.product_id = p.id and v.label = ${variant}
       cross join lateral (
-        select case when ${alt} then p.alt_unit else p.unit end as unit,
-               case when ${alt} then p.alt_factor else 1 end as factor
+        select case when ${variant}::text is not null then case when v.id is null then null else 'pc' end
+                    when ${alt} then p.alt_unit else p.unit end as unit,
+               case when ${variant}::text is not null then v.weight
+                    when ${alt} then p.alt_factor else 1 end as factor
       ) u
       where p.id = ${l.productId} and (p.active or p.id in ${tx(keep)}) and u.unit is not null
     `;
     if (inserted.count !== 1) {
-      throw new InputError(alt ? "altGone" : "productGone");
+      throw new InputError(variant ? "variantGone" : alt ? "altGone" : "productGone", { name: variant ?? "" });
     }
   }
   return no;

@@ -7,7 +7,8 @@ import { useT } from "../../_components/i18n";
 export type Product = {
   id: number; sku: string; name: string; price: number; in_stock: number; unit: string;
   alt_unit: string | null; alt_factor: number | null; alt_price: number | null;
-  variants: { label: string; price: number }[];
+  /** weight: how much stock one piece uses, in the stock unit. */
+  variants: { label: string; price: number; weight: number }[];
 };
 /**
  * alt: sold in the product's second unit (by the piece) rather than its stock unit.
@@ -30,6 +31,14 @@ export const toLine = (l: {
   variant: l.variant ?? "",
 });
 const num = (s: string) => Number(s.replace(",", ".")) || 0;
+/** Stock the product's lines use together, in its stock unit: variants and units all draw on one shelf. */
+const stockUsed = (line: Line, p: Product, lines: Line[]) =>
+  lines
+    .filter((l) => l.productId === line.productId)
+    .reduce((s, l) => {
+      const factor = l.variant ? p.variants.find((v) => v.label === l.variant)?.weight : l.alt ? p.alt_factor : 1;
+      return s + num(l.qty) * (factor ?? 1);
+    }, 0);
 const lineTotal = (l: Line) => num(l.qty) * num(l.unitPrice) * (1 - num(l.discount) / 100);
 export const linesTotal = (lines: Line[]) => lines.reduce((s, l) => s + (l.productId ? lineTotal(l) : 0), 0);
 
@@ -115,7 +124,7 @@ export function LineEditor({
             <label className="block">
               <span className="g-label">
                 {t.common.qty}
-                {p && !p.alt_unit && p.unit !== "U" ? ` (${p.unit})` : ""}
+                {l.variant ? " (pc)" : p && !p.alt_unit && p.unit !== "U" ? ` (${p.unit})` : ""}
               </span>
               <div className="flex gap-1">
                 <input
@@ -124,7 +133,7 @@ export function LineEditor({
                   value={l.qty}
                   onChange={(e) => update(l.key, { qty: e.target.value })}
                 />
-                {p?.alt_unit && (
+                {p?.alt_unit && !l.variant && (
                   <select
                     className="g-input w-auto"
                     aria-label={t.common.soldBy}
@@ -171,7 +180,7 @@ export function LineEditor({
                 </button>
               )}
             </div>
-            {p && num(l.qty) * (l.alt ? p.alt_factor ?? 1 : 1) > p.in_stock && (
+            {p && stockUsed(l, p, lines) > p.in_stock && (
               <p className="col-span-full text-xs text-[var(--g-bad)]">
                 {fill(t.common.onlyInStock, { qty: fmtQty(p.in_stock), unit: p.unit })}
               </p>

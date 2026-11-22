@@ -43,9 +43,9 @@ const inStock = sql`(p.opening_stock + coalesce(pu.q, 0) - coalesce(s.q, 0) + co
 export const lineName = sql`(p.name || coalesce(' · ' || s.variant, ''))`;
 
 /** A product's sub-products, in order: same stock, own label and price. */
-export type Variant = { label: string; price: number };
+export type Variant = { label: string; price: number; weight: number };
 const variantsCol = sql`
-  coalesce((select json_agg(json_build_object('label', v.label, 'price', v.price::float) order by v.position, v.id)
+  coalesce((select json_agg(json_build_object('label', v.label, 'price', v.price::float, 'weight', v.weight::float) order by v.position, v.id)
             from product_variants v where v.product_id = p.id), '[]') as variants
 `;
 
@@ -238,7 +238,7 @@ export async function getSale(no: string): Promise<Sale | null> {
     date: string; customer_id: number | null; channel: string | null; payment: string | null; paid: boolean;
     created_by: string | null; created_by_id: number | null; created_at: Date; return_of_no: string | null;
   })[]>`
-    select s.id, s.product_id, p.sku, ${lineName} as product, s.variant, s.qty, s.unit, s.factor <> 1 or s.unit <> p.unit as alt,
+    select s.id, s.product_id, p.sku, ${lineName} as product, s.variant, s.qty, s.unit, s.variant is null and (s.factor <> 1 or s.unit <> p.unit) as alt,
            s.unit_price, s.discount_pct, s.qty * s.unit_price * (1 - s.discount_pct / 100) as total,
            coalesce((select -sum(r.qty) from sales r where r.return_of = s.id), 0) as returned,
            s.date, s.customer_id, s.channel, s.payment, s.paid, u.name as created_by, s.created_by as created_by_id,
@@ -339,7 +339,7 @@ const orderJoins = sql`
   left join users u on u.id = o.created_by
   left join lateral (
     select json_agg(json_build_object(
-             'productId', p.id, 'product', p.name || coalesce(' · ' || ol.variant, ''), 'variant', ol.variant, 'unit', case when ol.alt then p.alt_unit else p.unit end,
+             'productId', p.id, 'product', p.name || coalesce(' · ' || ol.variant, ''), 'variant', ol.variant, 'unit', case when ol.variant is not null then 'pc' when ol.alt then p.alt_unit else p.unit end,
              'qty', ol.qty, 'alt', ol.alt, 'unitPrice', ol.unit_price, 'discount', ol.discount_pct
            ) order by ol.position, ol.id) as lines,
            sum(ol.qty * ol.unit_price * (1 - ol.discount_pct / 100)) as total

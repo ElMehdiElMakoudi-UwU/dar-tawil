@@ -603,7 +603,7 @@ export async function saveProduct(_: FormState, fd: FormData): Promise<FormState
       active: productId ? checked(fd, "active") : true,
       ...altUnit(fd, t),
     };
-    const variants = productVariants(fd, t);
+    const variants = productVariants(fd);
     await sql.begin(async (tx) => {
       let pid = productId;
       if (pid) {
@@ -622,20 +622,28 @@ export async function saveProduct(_: FormState, fd: FormData): Promise<FormState
 }
 
 /**
- * Sub-products: rows of variant_label / variant_price, sold from the same
- * stock at their own price. Blank rows are skipped; a label needs a price.
+ * Sub-products: rows of variant_label / variant_price / variant_weight, as
+ * many as the admin adds. Each is a piece sold from the product's stock at
+ * its own price; its weight (in the stock unit, e.g. 0.025 kg) is the stock
+ * it uses and, times the cost per kg, what it cost. Blank rows are skipped;
+ * a label needs a price; no weight means one stock unit.
  */
-function productVariants(fd: FormData, t: Dict) {
+function productVariants(fd: FormData) {
+  const field = (k: string) => fd.getAll(k).map((v) => String(v).trim().replace(",", "."));
   const labels = fd.getAll("variant_label").map((v) => String(v).trim());
-  const prices = fd.getAll("variant_price").map((v) => String(v).trim().replace(",", "."));
-  const out: { label: string; price: number }[] = [];
+  const prices = field("variant_price");
+  const weights = field("variant_weight");
+  const out: { label: string; price: number; weight: number }[] = [];
   labels.forEach((label, i) => {
-    const raw = prices[i] ?? "";
-    if (!label && !raw) return;
-    const price = Number(raw);
-    if (!label || raw === "" || !(price >= 0)) throw new InputError("variantIncomplete");
+    const rawPrice = prices[i] ?? "";
+    const rawWeight = weights[i] ?? "";
+    if (!label && !rawPrice && !rawWeight) return;
+    const price = Number(rawPrice);
+    if (!label || rawPrice === "" || !(price >= 0)) throw new InputError("variantIncomplete");
+    const weight = rawWeight === "" ? 1 : Number(rawWeight);
+    if (!(weight > 0)) throw new InputError("variantWeight");
     if (out.some((v) => v.label.toLowerCase() === label.toLowerCase())) throw new InputError("variantDuplicate", { label });
-    out.push({ label: label.slice(0, 80), price });
+    out.push({ label: label.slice(0, 80), price, weight });
   });
   return out;
 }
