@@ -7,9 +7,14 @@ import type { Locale } from "@/lib/locales";
  * edited in /gestion/admin/collections (db/migrations/007_catalog.sql).
  */
 
-/** The page's sections, in order. Their titles are in content/*.ts, collectionsPage.categories. */
-export const categories = ["boxChocolat", "dattes", "tablettes", "evenements"] as const;
-export type Category = (typeof categories)[number];
+/** A section's key (catalog_categories.slug), edited in /gestion/admin/collections/rubriques. */
+export type Category = string;
+
+export type CategoryRow = { slug: string; position: number } & Record<`name_${Locale}`, string | null> & { name_fr: string };
+
+/** The page's sections, in the order set in the back office. */
+export const getCategoryRows = () =>
+  sql<CategoryRow[]>`select slug, position, name_fr, name_en, name_ar from catalog_categories order by position, slug`;
 
 export type PackVariant = {
   id: number;
@@ -81,8 +86,8 @@ export async function getCatalog(lang: Locale): Promise<Pack[]> {
 
 /** The visible packs grouped by section, in section order. Empty sections are left out. */
 export async function getCatalogSections(lang: Locale) {
-  const packs = await getCatalog(lang);
-  return categories
-    .map((category) => ({ category, packs: packs.filter((p) => p.category === category) }))
+  const [packs, cats] = await Promise.all([getCatalog(lang), getCategoryRows()]);
+  return cats
+    .map((c) => ({ category: c.slug, name: localized(c, "name", lang), packs: packs.filter((p) => p.category === c.slug) }))
     .filter((s) => s.packs.length > 0);
 }

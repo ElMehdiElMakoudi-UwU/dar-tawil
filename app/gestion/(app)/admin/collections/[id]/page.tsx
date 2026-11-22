@@ -79,7 +79,7 @@ export default async function EditPackPage({ params }: PageProps<"/gestion/admin
           </div>
           <div className="mt-5 flex flex-wrap items-end gap-x-6 gap-y-3 border-t border-[var(--g-line)] pt-4">
             <Field label={t.catalog.section} className="w-full sm:w-56">
-              <Select name="category" options={categoryOptions(lang)} defaultValue={pack.category} required blank={false} />
+              <Select name="category" options={await categoryOptions(lang)} defaultValue={pack.category} required blank={false} />
             </Field>
             <label className="flex min-h-10 items-center gap-2">
               <input type="checkbox" name="visible" defaultChecked={pack.visible} className="size-4 accent-[var(--color-accent)]" />

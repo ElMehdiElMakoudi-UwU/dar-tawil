@@ -1,14 +1,23 @@
 import "server-only";
-import { categories, imageUrl, type Category } from "@/lib/catalog";
-import { ar } from "@/content/ar";
-import { fr } from "@/content/fr";
+import { getCategoryRows, imageUrl, localized, type Category, type CategoryRow } from "@/lib/catalog";
 import { requireAdmin } from "./auth";
 import { sql } from "./db";
 import type { Lang } from "./i18n";
 
 /** The page sections, with the titles the site gives them, for a <Select>. */
-export const categoryOptions = (lang: Lang) =>
-  categories.map((value) => ({ value, label: (lang === "ar" ? ar : fr).collectionsPage.categories[value] }));
+export async function categoryOptions(lang: Lang) {
+  const rows = await getCategoryRows();
+  return rows.map((c) => ({ value: c.slug, label: localized(c, "name", lang) }));
+}
+
+/** Every rubrique with how many packs it holds, for /gestion/admin/collections/rubriques. */
+export async function getCategoryAdmin() {
+  await requireAdmin();
+  return sql<(CategoryRow & { packs: number })[]>`
+    select c.slug, c.position, c.name_fr, c.name_en, c.name_ar,
+      (select count(*)::int from catalog_packs p where p.category = c.slug) as packs
+    from catalog_categories c order by c.position, c.slug`;
+}
 
 /* Back-office reads for /gestion/admin/collections. Admin only. */
 
@@ -58,7 +67,8 @@ export async function getPackRows(): Promise<PackRow[]> {
       select i.id, i.src from catalog_images i join catalog_variants v on v.id = i.variant_id
       where v.pack_id = p.id order by v.position, v.id, i.position, i.id limit 1
     ) c on true
-    order by array_position(${sql.array([...categories])}::text[], p.category), p.featured desc, p.position, p.id
+    join catalog_categories cat on cat.slug = p.category
+    order by cat.position, cat.slug, p.featured desc, p.position, p.id
   `;
   return rows.map(({ cover_id, cover_src, ...r }) => ({
     ...r,

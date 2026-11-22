@@ -156,10 +156,6 @@ export const fr = {
     },
     categories: {
       label: "Catégories",
-      boxChocolat: "Box chocolat",
-      dattes: "Dattes",
-      tablettes: "Tablettes",
-      evenements: "Événements",
     },
     featuredBadge: "Coup de cœur",
     priceFormat: "{price} MAD",

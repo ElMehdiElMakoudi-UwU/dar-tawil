@@ -142,6 +142,7 @@ const fr = {
     imageSize: "Une photo dépasse {mb} Mo.",
     noImage: "Choisissez au moins une photo.",
     lastVariant: "Un pack garde au moins une taille : supprimez le pack à la place.",
+    sectionNotEmpty: "Cette rubrique contient encore {n} pack(s) : déplacez-les dans une autre rubrique avant de la supprimer.",
     tooMany: "Trop de tentatives. Réessayez dans 15 minutes.",
     wrongLogin: "E-mail ou mot de passe incorrect.",
     setupDone: "La configuration est déjà faite — connectez-vous.",
@@ -207,6 +208,7 @@ const fr = {
   /** Field names as they appear inside error messages. */
   field: {
     packName: "Le nom du pack (français)",
+    sectionName: "Le nom de la rubrique (français)",
     price: "Le prix",
     name: "Le nom",
     email: "L’e-mail",
@@ -717,6 +719,17 @@ const fr = {
     moveAfter: "Après",
     noPhotos: "Aucune photo : cette taille n’apparaît pas sur le site tant qu’il n’y en a pas.",
     unreadable: "Impossible de lire cette image.",
+    manageSections: "Gérer les rubriques",
+    addSectionLink: "Ajouter une rubrique",
+    sectionsTitle: "Rubriques",
+    sectionsSub: "Les sections de la page Collections, dans l’ordre où le site les affiche. Une rubrique sans pack visible n’apparaît pas sur le site.",
+    packsCount: "Packs",
+    saveSection: "Enregistrer",
+    deleteSection: "Supprimer",
+    confirmDeleteSection: "Supprimer cette rubrique ?",
+    sectionsEmpty: "Aucune rubrique pour l’instant : créez la première ci-dessous.",
+    addSectionTitle: "Nouvelle rubrique",
+    addSectionBtn: "Créer la rubrique",
   },
 
   exp: {
@@ -855,6 +868,7 @@ const ar: Dict = {
     imageSize: "إحدى الصور تتجاوز {mb} ميغابايت.",
     noImage: "اختر صورة واحدة على الأقل.",
     lastVariant: "يجب أن يبقى للباقة حجم واحد على الأقل: احذف الباقة بدلاً من ذلك.",
+    sectionNotEmpty: "لا يزال هذا القسم يضم {n} باقة: انقلها إلى قسم آخر قبل حذفه.",
     tooMany: "محاولات كثيرة. أعد المحاولة بعد 15 دقيقة.",
     wrongLogin: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
     setupDone: "تم الإعداد مسبقًا — سجّل الدخول بدلًا من ذلك.",
@@ -919,6 +933,7 @@ const ar: Dict = {
 
   field: {
     packName: "اسم الباقة (بالفرنسية)",
+    sectionName: "اسم القسم (بالفرنسية)",
     price: "السعر",
     name: "الاسم",
     email: "البريد الإلكتروني",
@@ -1429,6 +1444,17 @@ const ar: Dict = {
     moveAfter: "بعد",
     noPhotos: "لا توجد صور: لا يظهر هذا الحجم على الموقع حتى تُضاف صورة.",
     unreadable: "تعذّرت قراءة هذه الصورة.",
+    manageSections: "إدارة الأقسام",
+    addSectionLink: "إضافة قسم",
+    sectionsTitle: "الأقسام",
+    sectionsSub: "أقسام صفحة المجموعات، بالترتيب الذي يعرضها به الموقع. القسم الذي لا يضم باقة معروضة لا يظهر على الموقع.",
+    packsCount: "الباقات",
+    saveSection: "حفظ",
+    deleteSection: "حذف",
+    confirmDeleteSection: "حذف هذا القسم؟",
+    sectionsEmpty: "لا توجد أقسام بعد: أنشئ الأول أدناه.",
+    addSectionTitle: "قسم جديد",
+    addSectionBtn: "إنشاء القسم",
   },
 
   exp: {

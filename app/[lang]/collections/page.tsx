@@ -55,13 +55,13 @@ export default async function CollectionsPage({
         {/* Jump links to each category. */}
         <nav aria-label={c.categories.label} className="-mx-5 overflow-x-auto px-5 md:mx-0 md:px-0">
           <ul className="flex gap-2.5">
-            {sections.map(({ category }, i) => (
+            {sections.map(({ category, name }, i) => (
               <li key={category} data-reveal data-reveal-delay={i * 90} className="shrink-0">
                 <a
                   href={`#${category}`}
                   className="cta-ghost relative inline-flex min-h-11 items-center border border-or/40 px-5 text-[0.78rem] uppercase tracking-[0.16em] text-ivoire/80 transition-colors duration-500 hover:border-or hover:text-or-profond"
                 >
-                  {c.categories[category]}
+                  {name}
                 </a>
               </li>
             ))}
@@ -69,14 +69,14 @@ export default async function CollectionsPage({
         </nav>
 
         <div className="mt-16 space-y-24 md:mt-20 md:space-y-32">
-          {sections.map(({ category, packs }, s) => (
+          {sections.map(({ category, name, packs }, s) => (
             <section key={category} id={category} aria-labelledby={`${category}-title`} className="scroll-mt-28">
               <div data-reveal className="cat-head relative flex items-baseline gap-5 pb-5">
                 <h2
                   id={`${category}-title`}
                   className="monument text-[clamp(1.5rem,2.8vw,2.1rem)] text-ivoire"
                 >
-                  {c.categories[category]}
+                  {name}
                 </h2>
                 <span className="font-display text-sm tracking-[0.2em] text-or/70">
                   {String(packs.length).padStart(2, "0")}

@@ -21,7 +21,7 @@ function priceRange(p: Pick<PackRow, "min_price" | "max_price">, t: Dict) {
 export default async function CollectionsAdminPage() {
   await requireAdmin();
   const [packs, t, lang] = await Promise.all([getPackRows(), getT(), getLang()]);
-  const options = categoryOptions(lang);
+  const options = await categoryOptions(lang);
   const sectionName = Object.fromEntries(options.map((o) => [o.value, o.label]));
   // Packs move up and down within their own section.
   const first = (i: number) => i === 0 || packs[i - 1].category !== packs[i].category;
@@ -30,6 +30,9 @@ export default async function CollectionsAdminPage() {
   return (
     <>
       <PageHeader title={t.nav.collections} sub={t.catalog.sub}>
+        <Link href="/gestion/admin/collections/rubriques" className="g-btn g-btn-ghost">
+          {t.catalog.manageSections}
+        </Link>
         <a href="/fr/collections" target="_blank" rel="noreferrer" className="g-btn g-btn-ghost">
           {t.catalog.viewSite} ↗
         </a>
@@ -127,6 +130,9 @@ export default async function CollectionsAdminPage() {
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Submit>{t.catalog.addBtn}</Submit>
             <p className="g-muted text-sm">{t.catalog.addHint}</p>
+            <Link href="/gestion/admin/collections/rubriques" className="g-muted text-sm underline underline-offset-4 sm:ms-auto">
+              {t.catalog.addSectionLink}
+            </Link>
           </div>
         </ActionForm>
       </Section>

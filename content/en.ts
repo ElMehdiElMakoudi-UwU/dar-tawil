@@ -158,10 +158,6 @@ export const en: Dictionary = {
     },
     categories: {
       label: "Categories",
-      boxChocolat: "Chocolate boxes",
-      dattes: "Dates",
-      tablettes: "Chocolate bars",
-      evenements: "Events",
     },
     featuredBadge: "Our favourite",
     priceFormat: "{price} MAD",

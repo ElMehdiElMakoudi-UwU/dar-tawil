@@ -158,10 +158,6 @@ export const ar: Dictionary = {
     },
     categories: {
       label: "الفئات",
-      boxChocolat: "علب الشوكولاتة",
-      dattes: "التمور",
-      tablettes: "ألواح الشوكولاتة",
-      evenements: "المناسبات",
     },
     featuredBadge: "المفضّلة لدينا",
     priceFormat: "{price} درهم",

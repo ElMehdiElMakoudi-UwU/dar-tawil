@@ -5,8 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/gestion/auth";
 import { sql } from "@/lib/gestion/db";
-import { categories } from "@/lib/catalog";
-import { checked, handle, id, InputError, number, oneOf, text, type FormState } from "@/lib/gestion/form";
+import { checked, handle, id, InputError, number, text, type FormState } from "@/lib/gestion/form";
 import { fill } from "@/lib/gestion/i18n";
 
 /*
@@ -31,6 +30,94 @@ const texts = <K extends string>(fd: FormData, key: K) =>
     string | null
   >;
 
+/** A rubrique's key, checked against the table (the foreign key would also refuse it). */
+async function category(fd: FormData, label: string) {
+  const slug = String(fd.get("category") ?? "");
+  const [row] = slug ? await sql`select 1 from catalog_categories where slug = ${slug}` : [];
+  if (!row) throw new InputError("choose", { label });
+  return slug;
+}
+
+/* ── rubriques ────────────────────────────────────────────────────── */
+
+/** "Boîtes cadeaux" → "boites-cadeaux"; falls back to "rubrique" for a name with no Latin letters. */
+function slugify(name: string) {
+  return (
+    name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40) || "rubrique"
+  );
+}
+
+export async function createCategory(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin();
+  return handle(async (t) => {
+    const values = { ...texts(fd, "name"), name_fr: text(fd, "name_fr", { required: true, label: t.field.sectionName })! };
+    await sql.begin(async (tx) => {
+      await tx`lock table catalog_categories in exclusive mode`;
+      const base = slugify(values.name_fr);
+      const taken = new Set(
+        (await tx<{ slug: string }[]>`select slug from catalog_categories where slug like ${base + "%"}`).map((r) => r.slug),
+      );
+      let slug = base;
+      for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`;
+      const [{ position }] = await tx<{ position: number }[]>`
+        select coalesce(max(position), 0) + 1 as position from catalog_categories`;
+      await tx`insert into catalog_categories ${tx({ slug, position, ...values })}`;
+    });
+    refresh();
+    return t.ok.added;
+  });
+}
+
+export async function saveCategory(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin();
+  return handle(async (t) => {
+    const slug = String(fd.get("slug") ?? "");
+    const values = { ...texts(fd, "name"), name_fr: text(fd, "name_fr", { required: true, label: t.field.sectionName })! };
+    const rows = await sql`update catalog_categories set ${sql(values)} where slug = ${slug}`;
+    if (!rows.count) throw new InputError("missing");
+    refresh();
+  });
+}
+
+export async function deleteCategory(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin();
+  return handle(async (t) => {
+    const slug = String(fd.get("slug") ?? "");
+    const [{ n }] = await sql<{ n: number }[]>`select count(*)::int as n from catalog_packs where category = ${slug}`;
+    if (n > 0) throw new InputError("sectionNotEmpty", { n });
+    await sql`delete from catalog_categories where slug = ${slug}`;
+    refresh();
+    return t.ok.deleted;
+  });
+}
+
+export async function moveCategory(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin();
+  return handle(async () => {
+    const slug = String(fd.get("slug") ?? "");
+    await sql.begin(async (tx) => {
+      const rows = await tx<{ slug: string }[]>`select slug from catalog_categories order by position, slug for update`;
+      const ids = rows.map((r) => r.slug);
+      const from = ids.indexOf(slug);
+      const to = from + (Number(fd.get("dir")) < 0 ? -1 : 1);
+      if (from < 0) throw new InputError("missing");
+      if (to < 0 || to >= ids.length) return;
+      [ids[from], ids[to]] = [ids[to], ids[from]];
+      await tx`
+        update catalog_categories c set position = x.pos
+        from (select unnest(${ids}::text[]) as slug, generate_series(1, ${ids.length}) as pos) x
+        where c.slug = x.slug`;
+    });
+    refresh();
+  });
+}
+
 /* ── packs ────────────────────────────────────────────────────────── */
 
 /** Creates a pack with one size, then opens it to add photos. */
@@ -39,13 +126,13 @@ export async function createPack(_: FormState, fd: FormData): Promise<FormState>
   let packId = 0;
   const result = await handle(async (t) => {
     const name_fr = text(fd, "name_fr", { required: true, label: t.field.packName })!;
-    const category = oneOf(fd, "category", categories, t.field.category);
+    const category_ = await category(fd, t.field.category);
     const description_fr = text(fd, "description_fr");
     const price = number(fd, "price", { min: 0, label: t.field.price });
     packId = await sql.begin(async (tx) => {
       const [{ id }] = await tx<{ id: number }[]>`
         insert into catalog_packs (position, category, name_fr, description_fr)
-        values ((select coalesce(max(position), 0) + 1 from catalog_packs), ${category}, ${name_fr}, ${description_fr})
+        values ((select coalesce(max(position), 0) + 1 from catalog_packs), ${category_}, ${name_fr}, ${description_fr})
         returning id`;
       await tx`insert into catalog_variants (pack_id, position, price) values (${id}, 1, ${price})`;
       return id;
@@ -60,11 +147,12 @@ export async function savePack(_: FormState, fd: FormData): Promise<FormState> {
   await requireAdmin();
   return handle(async (t) => {
     const packId = id(fd);
+    const cat = await category(fd, t.field.category);
     const values = {
       ...texts(fd, "name"),
       name_fr: text(fd, "name_fr", { required: true, label: t.field.packName })!,
       ...texts(fd, "description"),
-      category: oneOf(fd, "category", categories, t.field.category),
+      category: cat,
       featured: checked(fd, "featured"),
       visible: checked(fd, "visible"),
     };
