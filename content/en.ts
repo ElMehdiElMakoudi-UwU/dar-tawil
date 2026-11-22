@@ -163,12 +163,7 @@ export const en: Dictionary = {
     priceFormat: "{price} MAD",
     priceOnRequest: "Price on request",
     sizeLabel: "Size",
-    compose: {
-      label: "Flavours",
-      hint: "Choose your flavours and how many of each.",
-      count: "{n} pieces",
-      empty: "Choose at least one flavour",
-    },
+    flavourLabel: "Flavour",
     addToCart: "Add to basket",
     added: "Added",
     slider: { prev: "Previous photo", next: "Next photo", photo: "Photo {n} of {total}" },

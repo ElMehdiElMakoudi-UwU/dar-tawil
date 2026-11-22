@@ -163,12 +163,7 @@ export const ar: Dictionary = {
     priceFormat: "{price} درهم",
     priceOnRequest: "السعر عند الطلب",
     sizeLabel: "الحجم",
-    compose: {
-      label: "النكهات",
-      hint: "اختر نكهاتك وكمية كل واحدة.",
-      count: "{n} قطعة",
-      empty: "اختر نكهة واحدة على الأقل",
-    },
+    flavourLabel: "النكهة",
     addToCart: "أضف إلى السلة",
     added: "تمت الإضافة",
     slider: { prev: "الصورة السابقة", next: "الصورة التالية", photo: "الصورة {n} من {total}" },

@@ -10,8 +10,8 @@ export type PackCardLabels = {
   priceFormat: string;
   priceOnRequest: string;
   sizeLabel: string;
-  /** For a pack the visitor composes; "{n}" is the number of pieces. */
-  compose: { label: string; hint: string; count: string; empty: string };
+  /** The word over the flavour name on a composed pack ("Parfum"). */
+  flavourLabel: string;
   addToCart: string;
   added: string;
   quantity: string;
@@ -25,11 +25,15 @@ const priceNumber = new Intl.NumberFormat("fr-FR");
 /**
  * One pack: photo slider, name, description, size selector, price, quantity
  * and an add-to-basket button. Choosing a size swaps the photos and the price.
+ *
+ * A composed pack (macarons) has no size selector: the slider shows one photo
+ * per flavour, and the flavour on screen is the one added to the basket.
  */
 export function PackCard({
   name,
   description,
   featured,
+  composable = false,
   variants,
   labels,
   priority,
@@ -38,6 +42,7 @@ export function PackCard({
   name: string;
   description: string;
   featured: boolean;
+  composable?: boolean;
   variants: readonly PackVariant[];
   labels: PackCardLabels;
   priority?: boolean;
@@ -65,6 +70,12 @@ export function PackCard({
     return () => clearTimeout(t);
   }, [justAdded]);
 
+  function choose(i: number) {
+    if (i === selected) return;
+    setSelected(i);
+    setQty(1);
+  }
+
   function addToCart() {
     add({ id: variant.id, name, size: sizeName, price: variant.price }, qty);
     setQty(1);
@@ -75,9 +86,11 @@ export function PackCard({
     <article data-reveal data-reveal-delay={(index % 3) * 90} className="pack group/pack flex flex-col">
       {/* Keyed on the size so the slider starts again at its first photo. */}
       <Slider
-        key={variant.id}
-        images={variant.images}
+        key={composable ? "flavours" : variant.id}
+        images={composable ? variants.map((v) => v.images[0]) : variant.images}
         alt={fullName}
+        alts={composable ? variants.map((v) => `${name} (${v.label})`) : undefined}
+        onIndexChange={composable ? choose : undefined}
         labels={labels.slider}
         priority={priority}
         badge={featured ? labels.featuredBadge : undefined}
@@ -90,7 +103,17 @@ export function PackCard({
         <span aria-hidden className="pack-underline mt-3 block h-px w-12 bg-or/60" />
         <p className="mt-4 text-[0.95rem] leading-[1.7] text-ivoire/65">{description}</p>
 
-        {variants.length > 1 ? (
+        {composable ? (
+          <div className="mt-5">
+            <p className="text-[0.7rem] uppercase tracking-[0.2em] text-or/80">{labels.flavourLabel}</p>
+            {/* Keyed on the flavour so a swipe eases the new name in. */}
+            <p aria-live="polite" className="mt-1.5 font-display text-[1.2rem] text-or-profond">
+              <span key={variant.id} className="price-in inline-block">
+                {sizeName}
+              </span>
+            </p>
+          </div>
+        ) : variants.length > 1 ? (
           <div className="mt-5">
             <p
               id={sizeId}
@@ -174,180 +197,21 @@ export function PackCard({
   );
 }
 
-/**
- * A pack the visitor composes, such as macarons: every variant (flavour) is
- * listed with its own quantity, starting at 0, and one click puts each chosen
- * flavour in the basket as its own line. The photo follows the last flavour
- * touched.
- */
-export function ComposeCard({
-  name,
-  description,
-  featured,
-  variants,
-  labels,
-  priority,
-  index = 0,
-}: {
-  name: string;
-  description: string;
-  featured: boolean;
-  variants: readonly PackVariant[];
-  labels: PackCardLabels;
-  priority?: boolean;
-  index?: number;
-}) {
-  const [qtys, setQtys] = useState<Record<number, number>>({});
-  const [focused, setFocused] = useState(0);
-  const [justAdded, setJustAdded] = useState(false);
-  const { add } = useCart();
-  const listId = useId();
-  const shown = variants[focused];
-
-  const pieces = variants.reduce((n, v) => n + (qtys[v.id] ?? 0), 0);
-  const total = variants.reduce((n, v) => n + (v.price ?? 0) * (qtys[v.id] ?? 0), 0);
-  const onRequest = variants.some((v) => v.price === null && (qtys[v.id] ?? 0) > 0);
-  const fmt = (n: number) => labels.priceFormat.replace("{price}", priceNumber.format(n));
-
-  useEffect(() => {
-    if (!justAdded) return;
-    const t = setTimeout(() => setJustAdded(false), 1600);
-    return () => clearTimeout(t);
-  }, [justAdded]);
-
-  function setQty(i: number, qty: number) {
-    setQtys((prev) => ({ ...prev, [variants[i].id]: qty }));
-    setFocused(i);
-  }
-
-  function addToCart() {
-    for (const v of variants) {
-      const qty = qtys[v.id] ?? 0;
-      if (qty > 0) add({ id: v.id, name, size: v.label, price: v.price }, qty);
-    }
-    setQtys({});
-    setJustAdded(true);
-  }
-
-  return (
-    <article data-reveal data-reveal-delay={(index % 3) * 90} className="pack group/pack flex flex-col">
-      <Slider
-        key={shown.id}
-        images={shown.images}
-        alt={shown.label ? `${name} (${shown.label})` : name}
-        labels={labels.slider}
-        priority={priority}
-        badge={featured ? labels.featuredBadge : undefined}
-      />
-
-      <div className="flex flex-1 flex-col pt-6">
-        <h3 className="font-display text-[1.45rem] leading-tight text-ivoire transition-colors duration-500 group-hover/pack:text-or-profond">
-          {name}
-        </h3>
-        <span aria-hidden className="pack-underline mt-3 block h-px w-12 bg-or/60" />
-        {description ? <p className="mt-4 text-[0.95rem] leading-[1.7] text-ivoire/65">{description}</p> : null}
-
-        <div className="mt-5">
-          <p id={listId} className="text-[0.7rem] uppercase tracking-[0.2em] text-or/80">
-            {labels.compose.label}
-          </p>
-          <p className="mt-1 text-[0.82rem] text-ivoire/55">{labels.compose.hint}</p>
-          {/* Long lists scroll inside the card so it stays the size of its neighbours. */}
-          <ul
-            aria-labelledby={listId}
-            className="mt-3 max-h-[25rem] divide-y divide-or/15 overflow-y-auto overscroll-contain border-y border-or/22 pe-1"
-          >
-            {variants.map((v, i) => {
-              const qty = qtys[v.id] ?? 0;
-              return (
-                <li key={v.id} className="flex items-center gap-3 py-2">
-                  <button
-                    type="button"
-                    onClick={() => setFocused(i)}
-                    aria-pressed={i === focused}
-                    className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-start"
-                  >
-                    <span
-                      className={`relative size-11 shrink-0 overflow-hidden border bg-white transition-colors duration-300 ${
-                        i === focused ? "border-or" : "border-or/25"
-                      }`}
-                    >
-                      <Image src={v.images[0]} alt="" fill sizes="44px" className="object-cover" />
-                    </span>
-                    <span className="min-w-0">
-                      <span
-                        className={`block truncate text-[0.92rem] transition-colors duration-300 ${
-                          qty > 0 ? "text-or-profond" : "text-ivoire/85"
-                        }`}
-                      >
-                        {v.label}
-                      </span>
-                      <span className="block text-[0.75rem] text-ivoire/45">
-                        {v.price === null ? labels.priceOnRequest : fmt(v.price)}
-                      </span>
-                    </span>
-                  </button>
-                  <QtyStepper
-                    value={qty}
-                    min={0}
-                    onChange={(q) => setQty(i, q)}
-                    labels={labels}
-                    label={`${labels.quantity} — ${v.label}`}
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-
-        <div className="mt-auto pt-6">
-          <div className="flex items-baseline justify-between gap-4 pt-1" aria-live="polite">
-            <span className="text-[0.74rem] uppercase tracking-[0.18em] text-ivoire/60">
-              {labels.compose.count.replace("{n}", String(pieces))}
-            </span>
-            <span key={total} className="price-in font-display text-[1.35rem] text-or-profond">
-              {fmt(total)}
-              {onRequest ? " +" : ""}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={addToCart}
-            disabled={pieces === 0 && !justAdded}
-            aria-live="polite"
-            className="cta-primary cta-sheen group/cta relative mt-4 flex min-h-11 w-full items-center justify-center gap-2 overflow-hidden bg-or px-5 text-[0.74rem] font-medium uppercase tracking-[0.18em] text-noir transition-colors duration-300 hover:bg-or-clair disabled:pointer-events-none disabled:bg-or/30 disabled:text-noir/60"
-          >
-            {justAdded ? (
-              <>
-                <svg viewBox="0 0 16 16" aria-hidden className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M3 8.5l3.2 3L13 4.5" />
-                </svg>
-                {labels.added}
-              </>
-            ) : pieces === 0 ? (
-              labels.compose.empty
-            ) : (
-              <>
-                {labels.addToCart}
-                <span className="opacity-70">× {pieces}</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </article>
-  );
-}
-
 function Slider({
   images,
   alt,
+  alts,
+  onIndexChange,
   labels,
   priority,
   badge,
 }: {
   images: readonly string[];
   alt: string;
+  /** One text per photo, when each photo shows something different. */
+  alts?: readonly string[];
+  /** Told which photo is on screen, after a swipe, an arrow or a dot. */
+  onIndexChange?: (i: number) => void;
   labels: PackCardLabels["slider"];
   priority?: boolean;
   badge?: string;
@@ -355,6 +219,14 @@ function Slider({
   const track = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const many = images.length > 1;
+  // Past this, a row of dots no longer fits the card: show "3 / 14" instead.
+  const counter = images.length > 8;
+  const onChange = useRef(onIndexChange);
+  onChange.current = onIndexChange;
+
+  useEffect(() => {
+    onChange.current?.(index);
+  }, [index]);
 
   // Follow the visible slide, whether it got there by swipe, arrow or dot.
   useEffect(() => {
@@ -397,7 +269,7 @@ function Slider({
           >
             <Image
               src={src}
-              alt={alt}
+              alt={alts?.[i] ?? alt}
               fill
               priority={priority && i === 0}
               sizes="(max-width: 768px) 92vw, (max-width: 1024px) 46vw, 30vw"
@@ -431,6 +303,11 @@ function Slider({
             disabled={index === images.length - 1}
             onClick={() => go(index + 1)}
           />
+          {counter ? (
+            <span className="absolute bottom-3 start-1/2 -translate-x-1/2 bg-white/90 px-2.5 py-1 font-display text-[0.8rem] tracking-[0.08em] text-or-profond rtl:translate-x-1/2">
+              {index + 1} / {images.length}
+            </span>
+          ) : (
           <div className="absolute inset-x-0 bottom-3 flex justify-center gap-1">
             {images.map((src, i) => (
               <button
@@ -451,6 +328,7 @@ function Slider({
               </button>
             ))}
           </div>
+          )}
         </>
       ) : null}
     </div>
