@@ -32,7 +32,7 @@ export default async function EditSalePage({ params }: PageProps<"/gestion/sales
         // Only what the form needs: no costs are sent to the browser.
         products={products
           .filter((p) => p.active || used.has(p.id))
-          .map(({ id, sku, name, price, in_stock, unit, alt_unit, alt_factor, alt_price }) => ({ id, sku, name, price, in_stock, unit, alt_unit, alt_factor, alt_price }))}
+          .map(({ id, sku, name, price, in_stock, unit, alt_unit, alt_factor, alt_price, variants }) => ({ id, sku, name, price, in_stock, unit, alt_unit, alt_factor, alt_price, variants }))}
         customers={customers.map((c) => c.name)}
         channels={lists.channel}
         payments={lists.payment}
@@ -43,7 +43,7 @@ export default async function EditSalePage({ params }: PageProps<"/gestion/sales
           channel: sale.channel,
           payment: sale.payment,
           paid: sale.paid,
-          lines: sale.lines.map((l) => ({ productId: l.product_id, qty: l.qty, unitPrice: l.unit_price, discount: l.discount_pct, alt: l.alt })),
+          lines: sale.lines.map((l) => ({ productId: l.product_id, qty: l.qty, unitPrice: l.unit_price, discount: l.discount_pct, alt: l.alt, variant: l.variant })),
         }}
       />
     </>

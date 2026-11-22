@@ -52,7 +52,9 @@ async function StaffProducts() {
                   <td className="font-medium">{p.sku}</td>
                   <td>{p.name}</td>
                   <td>{p.category ?? "—"}</td>
-                  <td className="num">{mad(p.price)}</td>
+                  <td className="num">
+                    <Price p={p} />
+                  </td>
                   <td className="num">
                     {qty(p.in_stock)} <span className="g-muted text-xs">{p.unit}</span>
                   </td>
@@ -118,7 +120,9 @@ async function AdminProducts() {
                     {p.category && <div className="g-muted text-xs">{p.category}</div>}
                   </td>
                   <td className="num">{mad(p.unit_cost)}</td>
-                  <td className="num">{mad(p.price)}</td>
+                  <td className="num">
+                    <Price p={p} />
+                  </td>
                   <td className="num">{p.price ? pct((p.price - p.unit_cost) / p.price) : "—"}</td>
                   <td className="num">{qty(p.in_stock)}</td>
                   <td className="num">{mad(p.stock_value)}</td>
@@ -147,4 +151,10 @@ async function AdminProducts() {
       </Section>
     </>
   );
+}
+
+/** The product's price, or its variants' prices ("5 · 6 · 7") when it has sub-products. */
+function Price({ p }: { p: StaffProduct }) {
+  if (!p.variants.length) return <>{mad(p.price)}</>;
+  return <span title={p.variants.map((v) => `${v.label} ${mad(v.price)}`).join("\n")}>{p.variants.map((v) => mad(v.price)).join(" · ")}</span>;
 }

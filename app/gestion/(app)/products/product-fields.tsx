@@ -5,7 +5,11 @@ type P = {
   id?: number; sku?: string; name?: string; category?: string | null; unit?: string; unit_cost?: number;
   price?: number; opening_stock?: number; reorder_level?: number; active?: boolean;
   alt_unit?: string | null; alt_factor?: number | null; alt_price?: number | null;
+  variants?: { label: string; price: number }[];
 };
+
+/** Room to add a few variants on top of the saved ones; blank rows are ignored on save. */
+const SPARE_VARIANTS = 3;
 
 /** Shared by "add product" and the edit page. */
 export async function ProductFields({ p = {}, categories }: { p?: P; categories: string[] }) {
@@ -50,6 +54,29 @@ export async function ProductFields({ p = {}, categories }: { p?: P; categories:
         <Field label={t.products.altPrice}>
           <input className="g-input" name="alt_price" inputMode="decimal" defaultValue={p.alt_price ?? ""} />
         </Field>
+      </fieldset>
+      <fieldset className="grid gap-x-4 gap-y-2 border-t border-[var(--g-line)] pt-4 sm:col-span-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:col-span-4 lg:max-w-2xl">
+        <legend className="g-muted pe-2 text-sm">{t.products.variantsLegend}</legend>
+        <span className="g-label hidden sm:block">{t.products.variantLabel}</span>
+        <span className="g-label hidden sm:block">{t.products.variantPrice}</span>
+        {[...(p.variants ?? []), ...Array.from({ length: SPARE_VARIANTS }, () => null)].map((v, i) => (
+          <div key={i} className="contents">
+            <input
+              className="g-input"
+              name="variant_label"
+              aria-label={t.products.variantLabel}
+              defaultValue={v?.label ?? ""}
+              placeholder={i === 0 ? t.products.variantLabelPh : ""}
+            />
+            <input
+              className="g-input"
+              name="variant_price"
+              inputMode="decimal"
+              aria-label={t.products.variantPrice}
+              defaultValue={v?.price ?? ""}
+            />
+          </div>
+        ))}
       </fieldset>
       {p.id && (
         <label className="flex items-center gap-2 self-end pb-2">

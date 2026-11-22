@@ -298,9 +298,9 @@ export async function createReturn(_: FormState, fd: FormData): Promise<FormStat
       returnNo = (await tx<{ no: string }[]>`select 'R' || lpad(nextval('return_seq')::text, 5, '0') as no`)[0].no;
       for (const l of back) {
         const [r] = await tx<{ id: number }[]>`
-          insert into sales (date, order_no, customer_id, channel, product_id, qty, unit, factor, unit_price,
+          insert into sales (date, order_no, customer_id, channel, product_id, variant, qty, unit, factor, unit_price,
                              discount_pct, unit_cost, payment, paid, created_by, return_of)
-          select ${day}, ${returnNo}, customer_id, channel, product_id, ${-l.back}, unit, factor, unit_price,
+          select ${day}, ${returnNo}, customer_id, channel, product_id, variant, ${-l.back}, unit, factor, unit_price,
                  discount_pct, unit_cost, coalesce(${payment}, payment), true, ${user.id}, id
           from sales where id = ${l.id}
           returning id
@@ -480,6 +480,7 @@ export async function saveOrder(_: FormState, fd: FormData): Promise<FormState> 
             product_id: l.productId,
             qty: l.qty,
             alt: l.alt === true,
+            variant: l.variant ?? null,
             unit_price: l.unitPrice,
             discount_pct: l.discount,
             position: i,
@@ -537,8 +538,8 @@ export async function setOrderStatus(_: FormState, fd: FormData): Promise<FormSt
 
       let saleNo = o.sale_no;
       if (status === "delivered" && !saleNo) {
-        const lines = await tx<{ productId: number; qty: number; alt: boolean; unitPrice: number; discount: number }[]>`
-          select product_id as "productId", qty, alt, unit_price as "unitPrice", discount_pct as discount
+        const lines = await tx<{ productId: number; qty: number; alt: boolean; variant: string | null; unitPrice: number; discount: number }[]>`
+          select product_id as "productId", qty, alt, variant, unit_price as "unitPrice", discount_pct as discount
           from order_lines where order_id = ${orderId} order by position, id
         `;
         if (!lines.length) throw new InputError("orderNoLines");
@@ -602,14 +603,41 @@ export async function saveProduct(_: FormState, fd: FormData): Promise<FormState
       active: productId ? checked(fd, "active") : true,
       ...altUnit(fd, t),
     };
-    if (productId) {
-      await sql`update products set ${sql(values)} where id = ${productId}`;
-    } else {
-      await sql`insert into products ${sql(values)}`;
-    }
+    const variants = productVariants(fd, t);
+    await sql.begin(async (tx) => {
+      let pid = productId;
+      if (pid) {
+        await tx`update products set ${tx(values)} where id = ${pid}`;
+        await tx`delete from product_variants where product_id = ${pid}`;
+      } else {
+        [{ id: pid }] = await tx<{ id: number }[]>`insert into products ${tx(values)} returning id`;
+      }
+      if (variants.length) {
+        await tx`insert into product_variants ${tx(variants.map((v, i) => ({ ...v, product_id: pid, position: i })))}`;
+      }
+    });
     refresh();
   });
   return result;
+}
+
+/**
+ * Sub-products: rows of variant_label / variant_price, sold from the same
+ * stock at their own price. Blank rows are skipped; a label needs a price.
+ */
+function productVariants(fd: FormData, t: Dict) {
+  const labels = fd.getAll("variant_label").map((v) => String(v).trim());
+  const prices = fd.getAll("variant_price").map((v) => String(v).trim().replace(",", "."));
+  const out: { label: string; price: number }[] = [];
+  labels.forEach((label, i) => {
+    const raw = prices[i] ?? "";
+    if (!label && !raw) return;
+    const price = Number(raw);
+    if (!label || raw === "" || !(price >= 0)) throw new InputError("variantIncomplete");
+    if (out.some((v) => v.label.toLowerCase() === label.toLowerCase())) throw new InputError("variantDuplicate", { label });
+    out.push({ label: label.slice(0, 80), price });
+  });
+  return out;
 }
 
 /** The optional second selling unit: all three fields, or none. */

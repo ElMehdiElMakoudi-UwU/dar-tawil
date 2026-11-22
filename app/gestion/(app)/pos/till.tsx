@@ -9,9 +9,16 @@ import { useT } from "../../_components/i18n";
 type Product = {
   id: number; sku: string; name: string; category: string | null; price: number; in_stock: number; unit: string;
   alt_unit: string | null; alt_factor: number | null; alt_price: number | null;
+  variants: Variant[];
 };
-/** qty is typed text so weights like 0.35 can be keyed in; alt = sold in the product's second unit. */
-type Line = { productId: number; qty: string; unitPrice: string; discount: string; alt: boolean };
+type Variant = { label: string; price: number };
+/**
+ * qty is typed text so weights like 0.35 can be keyed in; alt = sold in the product's second unit.
+ * variant: the sub-product's label ("" = none). key tells lines apart: one product can sit in the
+ * basket at 5 dh and at 7 dh.
+ */
+type Line = { key: string; productId: number; variant: string; qty: string; unitPrice: string; discount: string; alt: boolean };
+const lineKey = (productId: number, variant = "") => `${productId}|${variant}`;
 
 /**
  * Which of a product's two units is the countable "piece": the smaller one.
@@ -47,7 +54,7 @@ export function Till({
   const t = useT();
   const [state, run, pending] = useActionState(createSale, undefined);
   const [lines, setLines] = useState<Line[]>([]);
-  const [open, setOpen] = useState<number | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState(ALL);
   const [payment, setPayment] = useState(payments[0] ?? "");
@@ -92,28 +99,37 @@ export function Till({
   }, [state]);
 
   // A tap adds one piece (a single date, a single chocolate); the basket line
-  // can be switched to weight.
-  function add(p: Product) {
+  // can be switched to weight. A product with variants is added one variant
+  // at a time, each on its own line at its own price.
+  function add(p: Product, v?: Variant) {
     setReceipt(null);
+    const key = lineKey(p.id, v?.label);
     setLines((ls) => {
-      const found = ls.find((l) => l.productId === p.id);
+      const found = ls.find((l) => l.key === key);
       // A line being weighed is left alone: another tap must not add a whole kilo.
       if (found && p.alt_unit && found.alt !== pieceIsAlt(p)) return ls;
       if (found) return ls.map((l) => (l === found ? { ...l, qty: String(num(l.qty) + 1) } : l));
-      const alt = pieceIsAlt(p);
-      return [...ls, { productId: p.id, qty: "1", unitPrice: String(alt ? p.alt_price : p.price), discount: "", alt }];
+      const alt = !v && pieceIsAlt(p);
+      const price = v ? v.price : alt ? p.alt_price : p.price;
+      return [...ls, { key, productId: p.id, variant: v?.label ?? "", qty: "1", unitPrice: String(price), discount: "", alt }];
     });
   }
+  /** Search's Enter: a product with variants needs a tap on the right price. */
+  const quickAdd = (p: Product) => (p.variants.length ? p.variants.length === 1 && add(p, p.variants[0]) : add(p));
 
-  const update = (id: number, patch: Partial<Line>) =>
-    setLines((ls) => ls.map((l) => (l.productId === id ? { ...l, ...patch } : l)));
-  const remove = (id: number) => setLines((ls) => ls.filter((l) => l.productId !== id));
+  const update = (key: string, patch: Partial<Line>) =>
+    setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  const remove = (key: string) => setLines((ls) => ls.filter((l) => l.key !== key));
+  /** The price a line starts at, to tell when it was changed by hand. */
+  const listPrice = (l: Line, p: Product) =>
+    l.variant ? p.variants.find((v) => v.label === l.variant)?.price : l.alt ? p.alt_price : p.price;
+  const lineLabel = (l: Line, p: Product) => (l.variant ? `${p.name} · ${l.variant}` : p.name);
 
   function charge() {
     if (!lines.length || pending) return;
     // Server-side validation also catches this; checking here keeps the typed basket.
     if (lines.some((l) => !(num(l.qty) > 0))) {
-      setOpen(lines.find((l) => !(num(l.qty) > 0))!.productId);
+      setOpen(lines.find((l) => !(num(l.qty) > 0))!.key);
       return;
     }
     const fd = new FormData();
@@ -125,7 +141,9 @@ export function Till({
     fd.set(
       "lines",
       JSON.stringify(
-        lines.map((l) => ({ productId: l.productId, qty: num(l.qty), unitPrice: num(l.unitPrice), discount: num(l.discount), alt: l.alt })),
+        lines.map((l) => ({
+          productId: l.productId, variant: l.variant || null, qty: num(l.qty), unitPrice: num(l.unitPrice), discount: num(l.discount), alt: l.alt,
+        })),
       ),
     );
     charged.current = { total, tendered: isCash && paid && given > 0 ? given : null };
@@ -146,7 +164,7 @@ export function Till({
           onKeyDown={(e) => {
             if (e.key === "Enter" && shown[0]) {
               e.preventDefault();
-              add(shown[0]);
+              quickAdd(shown[0]);
               setSearch("");
             }
           }}
@@ -169,9 +187,48 @@ export function Till({
         {shown.length ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
             {shown.map((p) => {
-              const line = lines.find((l) => l.productId === p.id);
-              const inCart = line ? num(line.qty) : 0;
-              const left = p.in_stock - (line ? stockUsed(line) : 0);
+              const own = lines.filter((l) => l.productId === p.id);
+              const inCart = own.reduce((s, l) => s + num(l.qty), 0);
+              const left = p.in_stock - own.reduce((s, l) => s + stockUsed(l), 0);
+              const leftText = (
+                <span className={`text-xs tabular-nums ${left <= 0 ? "text-[var(--g-bad)]" : "g-muted"}`}>
+                  {fill(t.pos.left, { qty: fmtQty(left) + (p.unit !== "U" ? ` ${p.unit}` : "") })}
+                </span>
+              );
+              if (p.variants.length) {
+                // One button per price: a single tap adds the right one.
+                return (
+                  <div
+                    key={p.id}
+                    role="group"
+                    aria-label={fill(t.pos.pickVariant, { name: p.name })}
+                    className="g-tile cursor-default hover:bg-[var(--color-noir)] active:transform-none"
+                    data-selected={inCart > 0 || undefined}
+                  >
+                    {inCart > 0 && <span className="g-tile-count">{fmtQty(inCart)}</span>}
+                    <span className="flex items-baseline justify-between gap-2">
+                      <span className="line-clamp-2 font-medium leading-snug">{p.name}</span>
+                      {leftText}
+                    </span>
+                    <span className="mt-auto flex flex-wrap gap-1.5 pt-2">
+                      {p.variants.map((v) => {
+                        const n = num(lines.find((l) => l.key === lineKey(p.id, v.label))?.qty ?? "0");
+                        return (
+                          <button
+                            key={v.label}
+                            type="button"
+                            className={`g-btn g-btn-sm flex-1 flex-col px-2 leading-tight ${n > 0 ? "" : "g-btn-ghost"}`}
+                            onClick={() => add(p, v)}
+                          >
+                            <span className="text-xs">{v.label}{n > 0 && ` ×${fmtQty(n)}`}</span>
+                            <span className="tabular-nums font-medium" dir="ltr">{mad(v.price)}</span>
+                          </button>
+                        );
+                      })}
+                    </span>
+                  </div>
+                );
+              }
               return (
                 <button key={p.id} type="button" className="g-tile" onClick={() => add(p)} data-selected={inCart > 0 || undefined}>
                   {inCart > 0 && <span className="g-tile-count">{fmtQty(inCart)}</span>}
@@ -182,9 +239,7 @@ export function Till({
                       {mad(pieceIsAlt(p) ? p.alt_price : p.price)}
                       {p.alt_unit && <span className="g-muted text-xs"> /{pieceIsAlt(p) ? p.alt_unit : p.unit}</span>}
                     </span>
-                    <span className={`text-xs tabular-nums ${left <= 0 ? "text-[var(--g-bad)]" : "g-muted"}`}>
-                      {fill(t.pos.left, { qty: fmtQty(left) + (p.unit !== "U" ? ` ${p.unit}` : "") })}
-                    </span>
+                    {leftText}
                   </span>
                 </button>
               );
@@ -233,18 +288,21 @@ export function Till({
           <ul className="divide-y divide-[var(--g-line)]">
             {lines.map((l) => {
               const p = byId.get(l.productId)!;
-              const editing = open === l.productId;
-              const changed = num(l.unitPrice) !== (l.alt ? p.alt_price : p.price) || num(l.discount) > 0;
+              const editing = open === l.key;
+              const changed = num(l.unitPrice) !== listPrice(l, p) || num(l.discount) > 0;
+              const name = lineLabel(l, p);
+              // Product-wide: two variants of one product draw on the same shelf.
+              const used = lines.filter((x) => x.productId === l.productId).reduce((s, x) => s + stockUsed(x), 0);
               return (
-                <li key={l.productId} className="py-3 first:pt-0">
+                <li key={l.key} className="py-3 first:pt-0">
                   <div className="flex items-start justify-between gap-3">
                     <button
                       type="button"
                       className="min-w-0 text-start"
                       aria-expanded={editing}
-                      onClick={() => setOpen(editing ? null : l.productId)}
+                      onClick={() => setOpen(editing ? null : l.key)}
                     >
-                      <span className="block truncate font-medium">{p.name}</span>
+                      <span className="block truncate font-medium">{name}</span>
                       <span className="g-muted block text-xs">
                         <span dir="ltr">
                           {mad(num(l.unitPrice))}
@@ -259,27 +317,27 @@ export function Till({
                     <button
                       type="button"
                       className="g-btn g-btn-ghost g-btn-sm w-9"
-                      aria-label={fill(t.pos.oneLess, { name: p.name })}
-                      onClick={() => (num(l.qty) > 1 ? update(l.productId, { qty: String(num(l.qty) - 1) }) : remove(l.productId))}
+                      aria-label={fill(t.pos.oneLess, { name })}
+                      onClick={() => (num(l.qty) > 1 ? update(l.key, { qty: String(num(l.qty) - 1) }) : remove(l.key))}
                     >
                       −
                     </button>
                     <input
                       className="g-input w-16 px-1 py-1 text-center tabular-nums"
                       inputMode="decimal"
-                      aria-label={fill(t.pos.qtyOf, { name: p.name })}
+                      aria-label={fill(t.pos.qtyOf, { name })}
                       value={l.qty}
-                      onChange={(e) => update(l.productId, { qty: e.target.value })}
+                      onChange={(e) => update(l.key, { qty: e.target.value })}
                     />
                     <button
                       type="button"
                       className="g-btn g-btn-ghost g-btn-sm w-9"
-                      aria-label={fill(t.pos.oneMore, { name: p.name })}
-                      onClick={() => update(l.productId, { qty: String(num(l.qty) + 1) })}
+                      aria-label={fill(t.pos.oneMore, { name })}
+                      onClick={() => update(l.key, { qty: String(num(l.qty) + 1) })}
                     >
                       +
                     </button>
-                    {p.alt_unit ? (
+                    {p.alt_unit && !l.variant ? (
                       <div className="flex" role="group" aria-label={t.common.soldBy}>
                         {[false, true].map((alt) => (
                           <button
@@ -290,7 +348,7 @@ export function Till({
                             onClick={() =>
                               l.alt !== alt &&
                               // Switching to weight clears the qty so it gets keyed in, not left at "2 kg".
-                              update(l.productId, {
+                              update(l.key, {
                                 alt,
                                 qty: alt === pieceIsAlt(p) ? "1" : "",
                                 unitPrice: String(alt ? p.alt_price : p.price),
@@ -304,7 +362,7 @@ export function Till({
                     ) : (
                       p.unit !== "U" && <span className="g-muted text-xs">{p.unit}</span>
                     )}
-                    <button type="button" className="g-link-danger ms-auto" onClick={() => remove(l.productId)}>
+                    <button type="button" className="g-link-danger ms-auto" onClick={() => remove(l.key)}>
                       {t.common.remove}
                     </button>
                   </div>
@@ -316,7 +374,7 @@ export function Till({
                           className="g-input"
                           inputMode="decimal"
                           value={l.unitPrice}
-                          onChange={(e) => update(l.productId, { unitPrice: e.target.value })}
+                          onChange={(e) => update(l.key, { unitPrice: e.target.value })}
                         />
                       </label>
                       <label className="block">
@@ -326,12 +384,12 @@ export function Till({
                           inputMode="decimal"
                           placeholder="0"
                           value={l.discount}
-                          onChange={(e) => update(l.productId, { discount: e.target.value })}
+                          onChange={(e) => update(l.key, { discount: e.target.value })}
                         />
                       </label>
                     </div>
                   )}
-                  {stockUsed(l) > p.in_stock && (
+                  {used > p.in_stock && (
                     <p className="mt-1 text-xs text-[var(--g-bad)]">
                       {fill(t.common.onlyInStock, { qty: fmtQty(p.in_stock), unit: p.unit })}
                     </p>

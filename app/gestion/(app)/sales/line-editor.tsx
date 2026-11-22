@@ -7,20 +7,27 @@ import { useT } from "../../_components/i18n";
 export type Product = {
   id: number; sku: string; name: string; price: number; in_stock: number; unit: string;
   alt_unit: string | null; alt_factor: number | null; alt_price: number | null;
+  variants: { label: string; price: number }[];
 };
-/** alt: sold in the product's second unit (by the piece) rather than its stock unit. */
-export type Line = { key: number; productId: number | ""; qty: string; unitPrice: string; discount: string; alt: boolean };
+/**
+ * alt: sold in the product's second unit (by the piece) rather than its stock unit.
+ * variant: the sub-product's label, for a product sold at several prices ("" = none picked).
+ */
+export type Line = { key: number; productId: number | ""; qty: string; unitPrice: string; discount: string; alt: boolean; variant: string };
 
 let nextKey = 1;
-export const blankLine = (): Line => ({ key: nextKey++, productId: "", qty: "1", unitPrice: "", discount: "", alt: false });
+export const blankLine = (): Line => ({ key: nextKey++, productId: "", qty: "1", unitPrice: "", discount: "", alt: false, variant: "" });
 /** A saved line (numbers) back into the editor's text fields. */
-export const toLine = (l: { productId: number; qty: number; unitPrice: number; discount: number; alt: boolean }): Line => ({
+export const toLine = (l: {
+  productId: number; qty: number; unitPrice: number; discount: number; alt: boolean; variant?: string | null;
+}): Line => ({
   key: nextKey++,
   productId: l.productId,
   qty: String(l.qty),
   unitPrice: String(l.unitPrice),
   discount: l.discount ? String(l.discount) : "",
   alt: l.alt,
+  variant: l.variant ?? "",
 });
 const num = (s: string) => Number(s.replace(",", ".")) || 0;
 const lineTotal = (l: Line) => num(l.qty) * num(l.unitPrice) * (1 - num(l.discount) / 100);
@@ -49,7 +56,10 @@ export function LineEditor({
   const payload = JSON.stringify(
     lines
       .filter((l) => l.productId)
-      .map((l) => ({ productId: l.productId, qty: num(l.qty), unitPrice: num(l.unitPrice), discount: num(l.discount), alt: l.alt })),
+      .map((l) => ({
+        productId: l.productId, qty: num(l.qty), unitPrice: num(l.unitPrice), discount: num(l.discount), alt: l.alt,
+        variant: l.variant || null,
+      })),
   );
 
   return (
@@ -70,7 +80,9 @@ export function LineEditor({
                 onChange={(e) => {
                   const id = Number(e.target.value) || "";
                   const prod = id ? byId.get(id) : undefined;
-                  update(l.key, { productId: id, unitPrice: prod ? String(prod.price) : "", alt: false });
+                  // A product with variants starts on its first one.
+                  const v = prod?.variants[0];
+                  update(l.key, { productId: id, unitPrice: prod ? String(v ? v.price : prod.price) : "", alt: false, variant: v?.label ?? "" });
                 }}
               >
                 <option value="">{t.common.choose}</option>
@@ -80,6 +92,25 @@ export function LineEditor({
                   </option>
                 ))}
               </select>
+              {p && (p.variants.length > 0 || l.variant) && (
+                <select
+                  className="g-input mt-1"
+                  aria-label={t.common.variant}
+                  value={l.variant}
+                  onChange={(e) => {
+                    const v = p.variants.find((x) => x.label === e.target.value);
+                    update(l.key, { variant: e.target.value, alt: false, ...(v ? { unitPrice: String(v.price) } : {}) });
+                  }}
+                >
+                  {/* A variant renamed or removed since this line was saved stays pickable. */}
+                  {l.variant && !p.variants.some((v) => v.label === l.variant) && <option value={l.variant}>{l.variant}</option>}
+                  {p.variants.map((v) => (
+                    <option key={v.label} value={v.label}>
+                      {v.label} — {mad(v.price)}
+                    </option>
+                  ))}
+                </select>
+              )}
             </label>
             <label className="block">
               <span className="g-label">

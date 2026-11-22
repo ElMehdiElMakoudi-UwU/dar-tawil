@@ -33,7 +33,7 @@ export default async function EditOrderPage({ params }: PageProps<"/gestion/orde
         <OrderFields
           o={order}
           // Only what the line editor needs: no costs are sent to the browser.
-          products={products.map(({ id, sku, name, price, in_stock, unit, alt_unit, alt_factor, alt_price }) => ({ id, sku, name, price, in_stock, unit, alt_unit, alt_factor, alt_price }))}
+          products={products.map(({ id, sku, name, price, in_stock, unit, alt_unit, alt_factor, alt_price, variants }) => ({ id, sku, name, price, in_stock, unit, alt_unit, alt_factor, alt_price, variants }))}
           customers={customers.map(({ name, phone, city }) => ({ name, phone, city }))}
           channels={lists.channel}
           payments={lists.payment}

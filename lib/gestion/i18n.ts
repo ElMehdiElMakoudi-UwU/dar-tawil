@@ -125,6 +125,7 @@ const fr = {
     askAdmin: "Demandez à un admin d’ajouter les produits.",
     onlyInStock: "Il ne reste que {qty} {unit} en stock — la vente sera quand même enregistrée.",
     soldBy: "Vendu à",
+    variant: "Variante",
   },
 
   auth: {
@@ -168,6 +169,8 @@ const fr = {
     unpaidAdmin: "Seul un admin peut marquer une commande comme impayée.",
     altIncomplete: "Pour une deuxième unité, indiquez l’unité, le stock qu’elle consomme et son prix.",
     altFactor: "Le stock utilisé par unité doit être supérieur à 0.",
+    variantIncomplete: "Chaque variante a besoin d’un nom et d’un prix.",
+    variantDuplicate: "La variante « {label} » est en double.",
     editCustomerAdmin: "Seul un admin peut modifier un client.",
     period: "Choisissez le mois concerné par ce paiement.",
     ownAdmin: "Vous ne pouvez pas retirer votre propre accès admin.",
@@ -301,6 +304,7 @@ const fr = {
     productCount: "{n} produit(s)",
     cashReceived: "Espèces reçues",
     charge: "Encaisser {amount} MAD",
+    pickVariant: "Quel prix pour {name} ?",
   },
 
   products: {
@@ -333,6 +337,12 @@ const fr = {
     altFactor: "Stock utilisé par 1 de ces unités",
     altFactorPh: "en unités de stock, ex. 0.012",
     altPrice: "Prix par deuxième unité (MAD)",
+    variantsLegend:
+      "Plusieurs prix ? (facultatif) — ex. chocolat enrobé : Petit 5, Moyen 6, Grand 7. Les variantes partagent le stock et le coût du produit ; la caisse demande laquelle vendre.",
+    variantLabel: "Nom de la variante",
+    variantLabelPh: "ex. Petit",
+    variantPrice: "Prix (MAD)",
+    variantsCount: "{n} prix",
     stillSold: "Toujours en vente (décochez pour le masquer des nouvelles ventes)",
   },
 
@@ -969,6 +979,7 @@ const ar: Dict = {
     askAdmin: "اطلب من المسؤول إضافة المنتجات أولًا.",
     onlyInStock: "لم يتبقَّ في المخزون سوى {qty} {unit} — سيُحفظ البيع مع ذلك.",
     soldBy: "يُباع بـ",
+    variant: "النوع",
   },
 
   auth: {
@@ -1011,6 +1022,8 @@ const ar: Dict = {
     productGone: "أحد المنتجات لم يعد موجودًا.",
     unpaidAdmin: "وحده المسؤول يمكنه جعل طلبية غير مؤداة.",
     altIncomplete: "للوحدة الثانية، أدخل الوحدة وكمية المخزون التي تستهلكها وثمنها.",
+    variantIncomplete: "كل نوع يحتاج إلى اسم وثمن.",
+    variantDuplicate: "النوع «{label}» مكرّر.",
     altFactor: "يجب أن يكون المخزون المستهلك لكل وحدة أكبر من 0.",
     editCustomerAdmin: "وحده المسؤول يمكنه تعديل زبون.",
     period: "اختر الشهر الذي يخص هذا الأداء.",
@@ -1144,6 +1157,7 @@ const ar: Dict = {
     productCount: "{n} منتج",
     cashReceived: "النقد المستلم",
     charge: "تحصيل {amount} درهم",
+    pickVariant: "أيّ ثمن لـ {name}؟",
   },
 
   products: {
@@ -1176,6 +1190,12 @@ const ar: Dict = {
     altFactor: "المخزون الذي تستهلكه وحدة واحدة منها",
     altFactorPh: "بوحدات المخزون، مثلًا 0.012",
     altPrice: "الثمن لكل وحدة ثانية (درهم)",
+    variantsLegend:
+      "عدة أثمنة؟ (اختياري) — مثلًا الشوكولاتة المغلّفة: صغير 5، متوسط 6، كبير 7. الأنواع تتقاسم مخزون المنتج وتكلفته؛ والصندوق يسأل أيّها يُباع.",
+    variantLabel: "اسم النوع",
+    variantLabelPh: "مثلًا صغير",
+    variantPrice: "الثمن (درهم)",
+    variantsCount: "{n} أثمنة",
     stillSold: "لا يزال يُباع (أزل التأشير لإخفائه من المبيعات الجديدة)",
   },
 

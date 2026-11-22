@@ -2,8 +2,11 @@ import "server-only";
 import type { TransactionSql } from "postgres";
 import { InputError } from "./form";
 
-/** alt: sold in the product's second unit (e.g. by the piece) instead of its stock unit. */
-export type Line = { productId: number; qty: number; unitPrice: number; discount: number; alt?: boolean };
+/**
+ * alt: sold in the product's second unit (e.g. by the piece) instead of its stock unit.
+ * variant: the label of the product's variant (sub-product) sold, if it has any.
+ */
+export type Line = { productId: number; qty: number; unitPrice: number; discount: number; alt?: boolean; variant?: string | null };
 
 /** The `lines` JSON field sent by the line editor, checked. At least one line. */
 export function parseLines(fd: FormData): Line[] {
@@ -21,6 +24,7 @@ export function parseLines(fd: FormData): Line[] {
     if (!(l.qty > 0)) throw new InputError("qtyPositive");
     if (!(l.unitPrice >= 0)) throw new InputError("priceNegative");
     if (!(l.discount >= 0 && l.discount <= 100)) throw new InputError("discountRange");
+    l.variant = typeof l.variant === "string" && l.variant.trim() ? l.variant.trim().slice(0, 80) : null;
   }
   return lines;
 }
@@ -46,8 +50,8 @@ export async function insertSale(
   for (const l of sale.lines) {
     const alt = l.alt === true;
     const inserted = await tx`
-      insert into sales (date, order_no, customer_id, channel, product_id, qty, unit, factor, unit_price, discount_pct, unit_cost, payment, paid, created_by)
-      select ${sale.day}, ${no}, ${sale.customerId}, ${sale.channel}, p.id, ${l.qty}, u.unit, u.factor, ${l.unitPrice}, ${l.discount},
+      insert into sales (date, order_no, customer_id, channel, product_id, variant, qty, unit, factor, unit_price, discount_pct, unit_cost, payment, paid, created_by)
+      select ${sale.day}, ${no}, ${sale.customerId}, ${sale.channel}, p.id, ${l.variant ?? null}, ${l.qty}, u.unit, u.factor, ${l.unitPrice}, ${l.discount},
              round(p.unit_cost * u.factor, 4), ${sale.payment}, ${sale.paid}, ${sale.userId}
       from products p
       cross join lateral (

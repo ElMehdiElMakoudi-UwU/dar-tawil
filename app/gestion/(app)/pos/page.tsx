@@ -23,7 +23,7 @@ export default async function PosPage() {
       {products.length ? (
         <Till
           // Only what the till needs: no costs are sent to the browser.
-          products={products.map(({ id, sku, name, category, price, in_stock, unit, alt_unit, alt_factor, alt_price }) => ({ id, sku, name, category, price, in_stock, unit, alt_unit, alt_factor, alt_price }))}
+          products={products.map(({ id, sku, name, category, price, in_stock, unit, alt_unit, alt_factor, alt_price, variants }) => ({ id, sku, name, category, price, in_stock, unit, alt_unit, alt_factor, alt_price, variants }))}
           customers={customers.map((c) => c.name)}
           channel={channel}
           payments={lists.payment}

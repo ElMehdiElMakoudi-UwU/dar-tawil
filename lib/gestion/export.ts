@@ -19,7 +19,7 @@ export async function yearWorkbook(year: number): Promise<Sheet[]> {
 
   const [sales, payments, invoices, purchases, expenses, payroll, movements, counts, adjustments, products, customers] = await Promise.all([
     sql`
-      select s.date, s.order_no, ro.order_no as return_of, c.name as customer, s.channel, p.sku, p.name as product,
+      select s.date, s.order_no, ro.order_no as return_of, c.name as customer, s.channel, p.sku, p.name as product, s.variant,
              s.qty, s.unit, s.unit_price, s.discount_pct, s.qty * s.unit_price * (1 - s.discount_pct / 100) as total,
              s.qty * s.unit_cost as cogs, s.payment, s.paid, i.no as invoice, u.name as by
       from sales s join products p on p.id = s.product_id
@@ -70,9 +70,9 @@ export async function yearWorkbook(year: number): Promise<Sheet[]> {
   return [
     {
       name: "Ventes",
-      columns: ["Date", "N°", "Avoir sur", "Client", "Canal", "SKU", "Produit", "Qté", "Unité", "Prix unit.", "Remise %", "Total", "Coût", "Marge", "Paiement", "Payé", "Facture", "Vendeur"],
+      columns: ["Date", "N°", "Avoir sur", "Client", "Canal", "SKU", "Produit", "Variante", "Qté", "Unité", "Prix unit.", "Remise %", "Total", "Coût", "Marge", "Paiement", "Payé", "Facture", "Vendeur"],
       rows: sales.map((r) => [
-        d(r.date), r.order_no, r.return_of, r.customer, r.channel, r.sku, r.product, r.qty, r.unit, m(r.unit_price),
+        d(r.date), r.order_no, r.return_of, r.customer, r.channel, r.sku, r.product, r.variant, r.qty, r.unit, m(r.unit_price),
         r.discount_pct || null, m(r.total), m(r.cogs), m(r.total - r.cogs), r.payment, r.paid, r.invoice, r.by,
       ]),
     },
@@ -138,7 +138,7 @@ export async function yearWorkbook(year: number): Promise<Sheet[]> {
 
 /** Tables in an order that respects their foreign keys; sessions are left out. */
 export const backupTables = [
-  "users", "lists", "settings", "products", "customers", "employees",
+  "users", "lists", "settings", "products", "product_variants", "customers", "employees",
   "orders", "order_lines", "sales", "sale_payments", "invoices",
   "purchases", "purchase_lines", "expenses", "payroll", "cash_movements", "cash_counts", "stock_adjustments",
   "catalog_packs", "catalog_variants", "catalog_images",

@@ -9,7 +9,7 @@ import { blankLine, LineEditor, linesTotal, toLine, type Line, type Product } fr
 
 type SavedSale = {
   no: string; customer: string | null; channel: string | null; payment: string | null; paid: boolean;
-  lines: { productId: number; qty: number; unitPrice: number; discount: number; alt: boolean }[];
+  lines: { productId: number; qty: number; unitPrice: number; discount: number; alt: boolean; variant: string | null }[];
 };
 
 /** One order, several lines. With `sale`, edits that sale in place (today is then its date). */
