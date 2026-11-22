@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/gestion/auth";
-import { dateLabel, dayLabel, mad, pct, qty } from "@/lib/gestion/format";
+import { addDays, combineBilans, daysBetween } from "@/lib/gestion/bilan";
+import { dateLabel, dayLabel, mad, monthOf, monthRange, pct, qty, shiftMonth, today } from "@/lib/gestion/format";
 import { fill } from "@/lib/gestion/i18n";
 import { getLang, getT } from "@/lib/gestion/lang";
-import { getBilanHistory, getBilanPeriods, getPeriodCharges, getPeriodReport } from "@/lib/gestion/queries";
-import { Empty, PageHeader, Section, Stat } from "../../_components/ui";
+import { getBilanHistory, getBilanLines, getBilanPeriods, getPeriodCharges } from "@/lib/gestion/queries";
+import { Empty, Field, PageHeader, Section, Stat } from "../../_components/ui";
 import { BreakEvenChart, HBars, Meter, PeriodColumns, Waterfall } from "./charts";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -13,27 +14,20 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const isDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
-const DAY = 86_400_000;
-const daysBetween = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / DAY) + 1;
-const addDays = (date: string, n: number) => new Date(Date.parse(date) + n * DAY).toISOString().slice(0, 10);
 const signedPct = (n: number) => `${n >= 0 ? "+" : ""}${(n * 100).toFixed(1)}%`;
 
 /**
  * The owner's dashboard, built on the period reports (Bilan de période):
  * what the counts say went out, against the expenses and payroll dated in
- * the same period — not on the till or the sales typed in.
+ * the same range — not on the till or the sales typed in. Any range can be
+ * picked; the saved bilans that fall in it are combined (see lib/gestion/bilan).
  */
 export default async function DashboardPage({ searchParams }: PageProps<"/gestion/admin">) {
   await requireAdmin();
   const sp = await searchParams;
   const [periods, lang, t] = await Promise.all([getBilanPeriods(), getLang(), getT()]);
 
-  // ?p=from_to picks a saved bilan; ?from=&to= any period; else the latest.
-  const [pFrom, pTo] = typeof sp.p === "string" ? sp.p.split("_") : [];
-  let from = isDate(pFrom) ? pFrom : isDate(sp.from) ? sp.from : periods[0]?.from;
-  let to = isDate(pTo) ? pTo : isDate(sp.to) ? sp.to : periods[0]?.to;
-
-  if (!from || !to) {
+  if (!periods.length) {
     return (
       <>
         <PageHeader title={t.nav.dashboard} sub={t.bilan.sub} />
@@ -47,22 +41,30 @@ export default async function DashboardPage({ searchParams }: PageProps<"/gestio
       </>
     );
   }
-  if (to < from) [from, to] = [to, from];
 
-  const [rows, charges, history] = await Promise.all([getPeriodReport(from, to), getPeriodCharges(from, to), getBilanHistory(24)]);
+  // Any ?from=&to= range; with none, the latest saved bilan.
+  let from = isDate(sp.from) ? sp.from : periods[0].from;
+  let to = isDate(sp.to) ? sp.to : periods[0].to;
+  if (to < from) [from, to] = [to, from];
+  const days = daysBetween(from, to);
+  // The same number of days just before, for the deltas.
+  const prevTo = addDays(from, -1);
+  const prevFrom = addDays(from, -days);
+
+  const [lines, charges, prevCharges, history] = await Promise.all([
+    getBilanLines(prevFrom, to),
+    getPeriodCharges(from, to),
+    getPeriodCharges(prevFrom, prevTo),
+    getBilanHistory(24),
+  ]);
 
   /* ── the numbers ─────────────────────────────────────────────── */
 
-  const counted = rows
-    .filter((r) => r.start_qty != null && r.end_qty != null)
-    .map((r) => {
-      const out = r.start_qty! + r.delivered - r.end_qty!;
-      return { ...r, out, revenue: out * r.price, cogs: out * r.unit_cost, margin: out * (r.price - r.unit_cost) };
-    });
-  const missing = rows.length - counted.length;
+  const c = combineBilans(lines, from, to);
+  const p = combineBilans(lines, prevFrom, prevTo);
 
-  const revenue = counted.reduce((s, r) => s + r.revenue, 0);
-  const cogs = counted.reduce((s, r) => s + r.cogs, 0);
+  const revenue = c.revenue;
+  const cogs = c.cogs;
   const margin = revenue - cogs;
   const rate = revenue > 0 ? margin / revenue : 0;
   const expenses = charges.byExpense.reduce((s, r) => s + r.amount, 0);
@@ -71,35 +73,32 @@ export default async function DashboardPage({ searchParams }: PageProps<"/gestio
 
   const breakEven = rate > 0 ? fixed / rate : null;
   const safety = breakEven != null ? revenue - breakEven : null;
-  const days = daysBetween(from, to);
-  // Assuming sales come in evenly: the day the period's sales passed the break-even.
+  // Assuming sales come in evenly: the day the range's sales passed the break-even.
   const breakEvenDay = breakEven != null && revenue > 0 && breakEven <= revenue ? addDays(from, Math.max(0, Math.ceil((breakEven / revenue) * days) - 1)) : null;
 
-  const stockStart = counted.reduce((s, r) => s + r.start_qty! * r.unit_cost, 0);
-  const stockEnd = counted.reduce((s, r) => s + r.end_qty! * r.unit_cost, 0);
+  const stockStart = c.stockStart;
+  const stockEnd = c.stockEnd;
   const avgStock = (stockStart + stockEnd) / 2;
   const rotation = avgStock > 0 ? cogs / avgStock : null;
   const leverage = net > 0 ? margin / net : null;
 
-  // The bilan just before this one, for the deltas.
-  const idx = history.findIndex((h) => h.from === from && h.to === to);
-  const prev = idx > 0 ? history[idx - 1] : null;
-  const prevNet = prev ? prev.revenue - prev.cogs - prev.expenses - prev.payroll : null;
-  const delta = (now: number, before: number | null) =>
-    before == null || before === 0 ? undefined : fill(t.bilan.vsPrev, { delta: signedPct((now - before) / Math.abs(before)) });
+  // Deltas against the same number of days just before, only when bilans
+  // cover that stretch about as well as this one (else the % means nothing).
+  const prev = p.covered > 0 && p.covered / days >= c.covered / days - 0.1 ? { revenue: p.revenue, net: p.revenue - p.cogs - prevCharges.byExpense.reduce((s, r) => s + r.amount, 0) - prevCharges.payroll } : null;
+  const delta = (now: number, before: number | null | undefined) =>
+    before == null || before === 0 ? undefined : fill(t.bilan.vsPrev, { delta: signedPct((now - before) / Math.abs(before)), n: days });
 
   const periodLabel = (f: string, tt: string) => `${dayLabel(f, lang)} – ${dayLabel(tt, lang)}`;
+  const usedKeys = new Set(c.bilans.map((b) => `${b.from}_${b.to}`));
   const trend = history.slice(-8).map((h) => ({
     label: periodLabel(h.from, h.to),
     revenue: h.revenue,
     net: h.revenue - h.cogs - h.expenses - h.payroll,
-    current: h.from === from && h.to === to,
+    current: usedKeys.has(`${h.from}_${h.to}`),
   }));
 
-  const productBars = counted
-    .map((r) => ({ label: r.name, value: r.margin, note: `${qty(r.out)} ${r.unit}` }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 12);
+  const counted = [...c.products].sort((a, b) => b.margin - a.margin);
+  const productBars = counted.map((r) => ({ label: r.name, value: r.margin, note: `${qty(r.out)} ${r.unit}` })).slice(0, 12);
   const chargeBars = [...charges.byExpense.map((r) => ({ label: r.label, value: r.amount })), ...(charges.payroll ? [{ label: t.bilan.payrollLabel, value: charges.payroll }] : [])].sort(
     (a, b) => b.value - a.value,
   );
@@ -110,43 +109,70 @@ export default async function DashboardPage({ searchParams }: PageProps<"/gestio
   else if (breakEvenDay) pointMort = fill(t.bilan.reachedOn, { date: dateLabel(breakEvenDay, lang) });
   else pointMort = fill(t.bilan.notReached, { amount: mad(breakEven - revenue) });
 
-  const selected = `${from}_${to}`;
-  const known = periods.some((p) => `${p.from}_${p.to}` === selected);
+  // Quick picks: calendar ranges, then the latest saved bilans.
+  const month = monthOf();
+  const lastMonth = monthRange(shiftMonth(month, -1));
+  const presets = [
+    { label: t.bilan.thisMonth, from: monthRange(month).from, to: today() },
+    { label: t.bilan.lastMonth, from: lastMonth.from, to: lastMonth.to },
+    { label: t.bilan.last3Months, from: monthRange(shiftMonth(month, -2)).from, to: today() },
+    { label: t.bilan.thisYear, from: `${today().slice(0, 4)}-01-01`, to: today() },
+  ];
+  const href = (f: string, tt: string) => `/gestion/admin?from=${f}&to=${tt}`;
+  const isCurrent = (f: string, tt: string) => f === from && tt === to;
+  const coverage = c.covered / days;
 
   return (
     <>
-      <PageHeader title={t.nav.dashboard} sub={t.bilan.sub}>
-        <form method="get" className="flex flex-wrap items-center gap-2">
-          <label className="sr-only" htmlFor="bilan-p">
-            {t.bilan.period}
-          </label>
-          <select id="bilan-p" name="p" defaultValue={selected} className="g-input w-auto">
-            {!known && <option value={selected}>{periodLabel(from, to)}</option>}
-            {periods.map((p) => (
-              <option key={`${p.from}_${p.to}`} value={`${p.from}_${p.to}`}>
-                {dateLabel(p.from, lang)} – {dateLabel(p.to, lang)}
-              </option>
-            ))}
-          </select>
-          <button className="g-btn g-btn-sm">{t.bilan.pick}</button>
+      <PageHeader title={t.nav.dashboard} sub={t.bilan.sub} />
+
+      <div className="g-panel mb-6 space-y-3">
+        <form method="get" className="flex flex-wrap items-end gap-3">
+          <Field label={t.period.from}>
+            <input type="date" name="from" defaultValue={from} className="g-input" required />
+          </Field>
+          <Field label={t.period.to}>
+            <input type="date" name="to" defaultValue={to} className="g-input" required />
+          </Field>
+          <button type="submit" className="g-btn">
+            {t.period.show}
+          </button>
         </form>
-      </PageHeader>
+        <div className="flex flex-wrap items-center gap-1.5 text-sm">
+          {presets.map((r) => (
+            <Link key={r.label} href={href(r.from, r.to)} className={`g-btn g-btn-sm ${isCurrent(r.from, r.to) ? "" : "g-btn-ghost"}`}>
+              {r.label}
+            </Link>
+          ))}
+          <span className="g-muted ms-2 me-1 text-xs">{t.bilan.savedBilans}</span>
+          {periods.slice(0, 4).map((b) => (
+            <Link key={`${b.from}_${b.to}`} href={href(b.from, b.to)} className={`g-btn g-btn-sm ${isCurrent(b.from, b.to) ? "" : "g-btn-ghost"}`}>
+              {periodLabel(b.from, b.to)}
+            </Link>
+          ))}
+        </div>
+      </div>
 
       <div className="g-muted mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span className="font-medium text-[var(--color-ivoire)]">
           {dateLabel(from, lang)} – {dateLabel(to, lang)}
         </span>
         <span>{fill(t.bilan.days, { n: days })}</span>
-        <span>{fill(t.bilan.counted, { n: counted.length, total: rows.length })}</span>
-        <Link href={`/gestion/admin/period?from=${from}&to=${to}`} className="underline underline-offset-4">
-          {t.bilan.openBilan}
-        </Link>
+        <span>{fill(t.bilan.coverage, { covered: c.covered, days, n: c.bilans.length })}</span>
       </div>
-      {missing > 0 && <p className="g-panel mb-4 text-sm">{fill(t.bilan.partial, { n: missing })}</p>}
+      {c.gaps.length > 0 && (
+        <p className="g-panel mb-4 text-sm">
+          {c.covered === 0 ? t.bilan.noCoverage : fill(t.bilan.gaps, { pct: pct(1 - coverage) })}{" "}
+          <span className="g-muted">{c.gaps.map((g) => (g.from === g.to ? dayLabel(g.from, lang) : periodLabel(g.from, g.to))).join(" · ")}</span>{" "}
+          <Link href={`/gestion/admin/period?from=${c.gaps[0].from}&to=${c.gaps[0].to}`} className="underline underline-offset-4">
+            {t.bilan.fillGap}
+          </Link>
+        </p>
+      )}
 
       {/* Headline figures. */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label={`${t.bilan.kpiRevenue} (${t.cur})`} value={mad(revenue)} note={delta(revenue, prev?.revenue ?? null)} />
+        <Stat label={`${t.bilan.kpiRevenue} (${t.cur})`} value={mad(revenue)} note={delta(revenue, prev?.revenue)} />
         <Stat label={`${t.bilan.kpiMargin} (${t.cur})`} value={mad(margin)} note={fill(t.bilan.kpiMarginNote, { pct: revenue ? pct(rate) : "—" })} />
         <Stat
           label={`${t.bilan.kpiFixed} (${t.cur})`}
@@ -160,7 +186,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/gestio
           note={
             <>
               {fill(t.bilan.kpiNetNote, { pct: revenue ? pct(net / revenue) : "—" })}
-              {delta(net, prevNet) && <span className="block">{delta(net, prevNet)}</span>}
+              {delta(net, prev?.net) && <span className="block">{delta(net, prev?.net)}</span>}
             </>
           }
         />
@@ -255,6 +281,63 @@ export default async function DashboardPage({ searchParams }: PageProps<"/gestio
         </Section>
       </div>
 
+      <Section title={t.bilan.usedTitle}>
+        {c.bilans.length ? (
+          <div className="g-table-wrap">
+            <table className="g-table">
+              <thead>
+                <tr>
+                  <th>{t.bilan.colPeriod}</th>
+                  <th className="num">{t.bilan.colDays}</th>
+                  <th className="num">{t.bilan.colShare}</th>
+                  <th className="num">{t.bilan.colProducts}</th>
+                  <th className="num">{t.period.revenue}</th>
+                  <th className="num">{t.period.earned}</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {c.bilans.map((b) => (
+                  <tr key={`${b.from}_${b.to}`}>
+                    <td className="whitespace-nowrap">
+                      {dateLabel(b.from, lang)} – {dateLabel(b.to, lang)}
+                    </td>
+                    <td className="num">
+                      {b.used} / {b.days}
+                    </td>
+                    <td className="num">{pct(b.share)}</td>
+                    <td className="num">{b.products}</td>
+                    <td className="num">{mad(b.revenue)}</td>
+                    <td className={`num ${b.revenue - b.cogs < 0 ? "g-neg" : ""}`}>{mad(b.revenue - b.cogs)}</td>
+                    <td className="text-end">
+                      <Link href={`/gestion/admin/period?from=${b.from}&to=${b.to}`} className="g-btn g-btn-ghost g-btn-sm">
+                        {t.bilan.openBilan}
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>{t.common.total}</td>
+                  <td className="num">
+                    {c.covered} / {days}
+                  </td>
+                  <td />
+                  <td />
+                  <td className="num">{mad(revenue)}</td>
+                  <td className="num">{mad(margin)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        ) : (
+          <Empty>{t.bilan.noCoverage}</Empty>
+        )}
+        <p className="g-muted mt-2 text-xs">{t.bilan.usedNote}</p>
+      </Section>
+
       <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         <Section title={t.bilan.productsTitle}>
           <div className="g-card">
@@ -275,9 +358,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/gestio
                     </tr>
                   </thead>
                   <tbody>
-                    {[...counted]
-                      .sort((a, b) => b.margin - a.margin)
-                      .map((r) => (
+                    {counted.map((r) => (
                         <tr key={r.id}>
                           <td>{r.name}</td>
                           <td className="num">

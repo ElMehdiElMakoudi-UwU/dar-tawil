@@ -696,3 +696,21 @@ export async function getPeriodCharges(from: string, to: string) {
   `;
   return { byExpense, ...row };
 }
+
+export type BilanLine = {
+  date_from: string; date_to: string; product_id: number; name: string; unit: string;
+  price: number; unit_cost: number; start_qty: number; end_qty: number; out: number;
+};
+
+/** Every counted product line of every saved bilan that overlaps [from, to]. */
+export async function getBilanLines(from: string, to: string) {
+  await requireAdmin();
+  return sql<BilanLine[]>`
+    select l.date_from, l.date_to, l.product_id, p.name, p.unit, l.price, l.unit_cost, pc.start_qty, pc.end_qty, l.out
+    from (${bilanLines}) l
+    join products p on p.id = l.product_id
+    join period_counts pc on pc.product_id = l.product_id and pc.date_from = l.date_from and pc.date_to = l.date_to
+    where l.date_from <= ${to} and l.date_to >= ${from}
+    order by l.date_from, l.date_to, p.name
+  `;
+}
