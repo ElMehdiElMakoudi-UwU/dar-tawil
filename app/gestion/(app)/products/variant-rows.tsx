@@ -18,18 +18,36 @@ const num = (s: string) => Number(s.replace(",", "."));
  * product's stock and its purchase cost per stock unit, so each piece costs
  * cost × weight. Sent as variant_label / variant_price / variant_weight rows.
  */
-export function VariantRows({ variants, unit, unitCost }: { variants: Variant[]; unit: string; unitCost: number }) {
+export function VariantRows({ variants, unit: savedUnit, unitCost: savedCost }: { variants: Variant[]; unit: string; unitCost: number }) {
   const t = useT();
   const saved = () => variants.map((v) => ({ key: nextKey++, label: v.label, price: String(v.price), weight: String(v.weight) }));
   const [rows, setRows] = useState<Row[]>(saved);
   const ref = useRef<HTMLDivElement>(null);
+  // The cost and stock unit typed higher up in the same form, so the cost
+  // of a piece follows them before the product is saved.
+  const [unit, setUnit] = useState(savedUnit);
+  const [unitCost, setUnitCost] = useState(savedCost);
   // "Add product" clears its form after saving with form.reset(), which
   // doesn't reach state: start over from the saved rows then too.
   useEffect(() => {
     const form = ref.current?.closest("form");
-    const onReset = () => setRows(saved());
-    form?.addEventListener("reset", onReset);
-    return () => form?.removeEventListener("reset", onReset);
+    if (!form) return;
+    const read = () => {
+      const field = (n: string) => (form.elements.namedItem(n) as HTMLInputElement | null)?.value.trim() ?? "";
+      setUnit(field("unit") || "U");
+      setUnitCost(num(field("unit_cost") || "0") || 0);
+    };
+    const onReset = () => {
+      setRows(saved());
+      setTimeout(read); // after the browser has put the fields back
+    };
+    read();
+    form.addEventListener("input", read);
+    form.addEventListener("reset", onReset);
+    return () => {
+      form.removeEventListener("input", read);
+      form.removeEventListener("reset", onReset);
+    };
   });
   const update = (key: number, patch: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
