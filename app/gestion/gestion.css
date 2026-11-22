@@ -249,3 +249,68 @@ textarea.g-input {
 html[lang="ar"] .g-shell :is(.g-label, .g-table th, h1, h2) {
   letter-spacing: 0;
 }
+
+/* Chart tokens. Gold is the house series; the blue second series and the
+   gain/loss pair were checked for colour-blind separation against each
+   theme's ground (dark, "jour" green, "blanc"). */
+@layer components {
+.g-shell {
+  --g-c1: var(--color-or);
+  --g-c2: #5f9fd0;
+  --g-pos: #4fa57a;
+  --g-neg: #d0604c;
+  --g-grid: color-mix(in srgb, var(--color-ivoire) 12%, transparent);
+}
+:root[data-palette="jour"] .g-shell {
+  --g-c2: #8ec0e8;
+  --g-pos: #9fd4a8;
+  --g-neg: #f08a74;
+}
+:root[data-palette="blanc"] .g-shell {
+  --g-c2: #2f6fa8;
+  --g-pos: #2f7a55;
+  --g-neg: #b23a28;
+}
+.g-chart {
+  /* Axis maths assumes left-to-right; Arabic labels still shape correctly. */
+  direction: ltr;
+}
+.g-chart text {
+  fill: var(--g-soft);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.g-chart .g-chart-strong {
+  fill: var(--color-ivoire);
+  font-weight: 500;
+}
+/* A halo in the card's colour keeps a label readable where it crosses a line. */
+.g-chart text {
+  paint-order: stroke;
+  stroke: var(--color-noir);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.g-tip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  min-width: 9rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--g-line);
+  background: var(--color-brou);
+  color: var(--color-ivoire);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
+  white-space: nowrap;
+}
+.g-key {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 3px;
+  vertical-align: -0.05rem;
+}
+}

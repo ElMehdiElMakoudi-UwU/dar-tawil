@@ -34,7 +34,8 @@ export function Stat({ label, value, note, tone }: { label: string; value: React
       <p
         className={`text-xl font-medium tabular-nums sm:text-2xl ${tone === "bad" ? "text-[var(--g-bad)]" : tone === "good" ? "text-[var(--g-good)]" : ""}`}
       >
-        {value}
+        {/* Amounts read left to right in Arabic too, so "-72.00" keeps its minus in front. */}
+        <bdi dir="ltr">{value}</bdi>
       </p>
       {note && <p className="g-muted mt-0.5 text-xs">{note}</p>}
     </div>

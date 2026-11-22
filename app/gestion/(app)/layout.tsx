@@ -45,6 +45,8 @@ export default async function AppLayout({ children }: LayoutProps<"/gestion">) {
               { href: "/gestion/admin/purchases", label: t.nav.purchases, icon: "cart" },
               { href: "/gestion/admin/expenses", label: t.nav.expenses, icon: "expense" },
               { href: "/gestion/admin/cash", label: t.nav.cash, icon: "bank" },
+              { href: "/gestion/admin/period", label: t.nav.period, icon: "calculator" },
+              { href: "/gestion/admin/sales-report", label: t.nav.salesReport, icon: "receipt" },
             ],
           },
           {

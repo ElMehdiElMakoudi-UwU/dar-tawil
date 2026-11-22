@@ -586,3 +586,113 @@ export async function getBusiness(): Promise<Business> {
   for (const r of rows) if ((businessKeys as readonly string[]).includes(r.key)) out[r.key as BusinessKey] = r.value;
   return out;
 }
+
+/* ── period report ────────────────────────────────────────────────── */
+
+export type PeriodRow = {
+  id: number; sku: string; name: string; category: string | null; unit: string;
+  price: number; unit_cost: number;
+  /** Stock-unit quantity delivered by suppliers between the two dates. */
+  delivered: number;
+  start_qty: number | null; end_qty: number | null;
+  /** End count of the latest earlier period that ended before `from`: a starting point. */
+  prev_end: number | null;
+};
+
+/**
+ * Every active product (and any inactive one delivered or counted in the
+ * period), with the deliveries between `from` and `to` and the counts saved
+ * for exactly that period.
+ */
+export async function getPeriodReport(from: string, to: string) {
+  await requireAdmin();
+  return sql<PeriodRow[]>`
+    select p.id, p.sku, p.name, p.category, p.unit, p.price, p.unit_cost,
+           coalesce(d.q, 0) as delivered, c.start_qty, c.end_qty,
+           (select pc.end_qty from period_counts pc
+            where pc.product_id = p.id and pc.date_to < ${from} and pc.end_qty is not null
+            order by pc.date_to desc, pc.updated_at desc limit 1) as prev_end
+    from products p
+    left join (
+      select l.product_id, sum(l.qty) as q
+      from purchase_lines l join purchases pu on pu.id = l.purchase_id
+      where pu.date between ${from} and ${to}
+      group by 1
+    ) d on d.product_id = p.id
+    left join period_counts c on c.product_id = p.id and c.date_from = ${from} and c.date_to = ${to}
+    where p.active or d.q is not null or c.id is not null
+    order by p.category nulls last, p.name
+  `;
+}
+
+/* ── admin: bilan dashboard ───────────────────────────────────────── */
+
+export type BilanPeriod = { from: string; to: string; counted: number };
+
+/** Periods that have saved counts, latest first. */
+export async function getBilanPeriods() {
+  await requireAdmin();
+  return sql<BilanPeriod[]>`
+    select date_from as from, date_to as to,
+           count(*) filter (where start_qty is not null and end_qty is not null)::int as counted
+    from period_counts group by 1, 2 order by date_to desc, date_from desc
+  `;
+}
+
+export type BilanSummary = {
+  from: string; to: string; revenue: number; cogs: number; expenses: number; payroll: number;
+};
+
+/*
+ * A product's movement over a saved period, as the bilan page works it out:
+ * start + deliveries − end, priced at the product's current price and cost.
+ * Only products with both counts take part.
+ */
+const bilanLines = sql`
+  select pc.date_from, pc.date_to, pc.product_id, p.price, p.unit_cost,
+         pc.start_qty + coalesce((
+           select sum(l.qty) from purchase_lines l join purchases pu on pu.id = l.purchase_id
+           where l.product_id = pc.product_id and pu.date between pc.date_from and pc.date_to
+         ), 0) - pc.end_qty as out
+  from period_counts pc join products p on p.id = pc.product_id
+  where pc.start_qty is not null and pc.end_qty is not null
+`;
+
+/** Revenue, cost of goods and charges for the latest saved periods (oldest first), for the trend. */
+export async function getBilanHistory(limit = 8) {
+  await requireAdmin();
+  const rows = await sql<BilanSummary[]>`
+    with per as (
+      select date_from, date_to from period_counts group by 1, 2 order by date_to desc, date_from desc limit ${limit}
+    ),
+    l as (${bilanLines})
+    select per.date_from as from, per.date_to as to,
+           coalesce(sum(l.out * l.price), 0) as revenue,
+           coalesce(sum(l.out * l.unit_cost), 0) as cogs,
+           (select coalesce(sum(amount), 0) from expenses e where e.date between per.date_from and per.date_to) as expenses,
+           (select coalesce(sum(amount), 0) from payroll y where y.date between per.date_from and per.date_to) as payroll
+    from per left join l on l.date_from = per.date_from and l.date_to = per.date_to
+    group by per.date_from, per.date_to
+    order by per.date_to, per.date_from
+  `;
+  return rows;
+}
+
+/** The charges and money movements dated inside a period, for the dashboard. */
+export async function getPeriodCharges(from: string, to: string) {
+  await requireAdmin();
+  const byExpense = await sql<{ label: string; amount: number }[]>`
+    select category as label, sum(amount) as amount
+    from expenses where date between ${from} and ${to} group by 1 order by 2 desc
+  `;
+  const [row] = await sql<{ payroll: number; purchased: number; purchased_unpaid: number; losses: number }[]>`
+    select
+      (select coalesce(sum(amount), 0) from payroll where date between ${from} and ${to}) as payroll,
+      (select coalesce(sum(l.qty * l.unit_cost), 0) from purchase_lines l join purchases pu on pu.id = l.purchase_id
+         where pu.date between ${from} and ${to}) as purchased,
+      (select coalesce(sum(l.qty * l.unit_cost), 0) from purchase_lines l join purchases pu on pu.id = l.purchase_id
+         where pu.date between ${from} and ${to} and not pu.paid) as purchased_unpaid,
+      (select coalesce(-sum(qty * unit_cost), 0) from stock_adjustments where date between ${from} and ${to} and qty < 0) as losses
+  `;
+  return { byExpense, ...row };
+}

@@ -790,6 +790,58 @@ export async function deletePurchase(_: FormState, fd: FormData): Promise<FormSt
   });
 }
 
+/* ── period report ────────────────────────────────────────────────── */
+
+/**
+ * The start and end counts of a period report, one `counts` JSON field:
+ * [{ productId, start, end }] with null for a count not taken yet. A product
+ * with neither count loses its saved row.
+ */
+export async function savePeriodCounts(_: FormState, fd: FormData): Promise<FormState> {
+  const user = await requireAdmin();
+  return handle(async (t) => {
+    const from = date(fd, "from", t.field.dateFrom);
+    const to = date(fd, "to", t.field.dateTo);
+    if (to < from) throw new InputError("periodOrder");
+    let raw: unknown;
+    try {
+      raw = JSON.parse(String(fd.get("counts") ?? "[]"));
+    } catch {
+      throw new InputError("readProducts");
+    }
+    if (!Array.isArray(raw)) throw new InputError("readProducts");
+    const count = (v: unknown) => {
+      if (v == null || v === "") return null;
+      const n = Number(v);
+      if (!Number.isFinite(n)) throw new InputError("notNumber", { label: t.field.quantity });
+      if (n < 0) throw new InputError("min", { label: t.field.quantity, min: 0 });
+      return n;
+    };
+    const rows = raw.map((r: { productId?: unknown; start?: unknown; end?: unknown }) => {
+      const productId = Number(r?.productId);
+      if (!Number.isInteger(productId) || productId <= 0) throw new InputError("readProducts");
+      return { productId, start: count(r.start), end: count(r.end) };
+    });
+    await sql.begin(async (tx) => {
+      for (const r of rows) {
+        if (r.start == null && r.end == null) {
+          await tx`delete from period_counts where date_from = ${from} and date_to = ${to} and product_id = ${r.productId}`;
+          continue;
+        }
+        await tx`
+          insert into period_counts (date_from, date_to, product_id, start_qty, end_qty, updated_by)
+          values (${from}, ${to}, ${r.productId}, ${r.start}, ${r.end}, ${user.id})
+          on conflict (date_from, date_to, product_id) do update
+            set start_qty = excluded.start_qty, end_qty = excluded.end_qty,
+                updated_by = excluded.updated_by, updated_at = now()
+        `;
+      }
+    });
+    refresh();
+    return t.ok.countsSaved;
+  });
+}
+
 /* ── expenses ─────────────────────────────────────────────────────── */
 
 export async function createExpense(_: FormState, fd: FormData): Promise<FormState> {

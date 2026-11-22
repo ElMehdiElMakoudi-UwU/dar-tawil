@@ -5,13 +5,13 @@ import { mad, monthName, pct, qty, today } from "@/lib/gestion/format";
 import { fill } from "@/lib/gestion/i18n";
 import { getLang, getT } from "@/lib/gestion/lang";
 import { getDashboard } from "@/lib/gestion/queries";
-import { Empty, PageHeader, Section, Stat } from "../../_components/ui";
+import { Empty, PageHeader, Section, Stat } from "../../../_components/ui";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getT()).nav.dashboard };
+  return { title: (await getT()).nav.salesReport };
 }
 
-export default async function DashboardPage({ searchParams }: PageProps<"/gestion/admin">) {
+export default async function DashboardPage({ searchParams }: PageProps<"/gestion/admin/sales-report">) {
   await requireAdmin();
   const raw = Number((await searchParams).year);
   const thisYear = Number(today().slice(0, 4));
@@ -27,12 +27,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/gestio
 
   return (
     <>
-      <PageHeader title={t.nav.dashboard} sub={t.dash.sub}>
+      <PageHeader title={t.nav.salesReport} sub={t.dash.sub}>
         <nav className="flex flex-wrap gap-1" aria-label={t.common.year}>
           {d.years.map((y) => (
             <Link
               key={y}
-              href={`/gestion/admin?year=${y}`}
+              href={`/gestion/admin/sales-report?year=${y}`}
               className={`g-btn g-btn-sm ${y === year ? "" : "g-btn-ghost"}`}
               aria-current={y === year ? "page" : undefined}
             >
