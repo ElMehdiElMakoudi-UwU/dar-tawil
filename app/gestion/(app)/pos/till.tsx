@@ -365,7 +365,7 @@ export function Till({
                         ))}
                       </div>
                     ) : (
-                      p.unit !== "U" && <span className="g-muted text-xs">{p.unit}</span>
+                      unitOf(l, p) !== "U" && <span className="g-muted text-xs">{unitOf(l, p)}</span>
                     )}
                     <button type="button" className="g-link-danger ms-auto" onClick={() => remove(l.key)}>
                       {t.common.remove}
