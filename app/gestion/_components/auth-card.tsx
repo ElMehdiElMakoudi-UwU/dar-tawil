@@ -4,7 +4,7 @@ import { LangSwitch } from "./lang-switch";
 /** Centered card for the sign-in and first-run screens. */
 export function AuthCard({ title, sub, children }: { title: string; sub: string; children: ReactNode }) {
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4 py-10">
+    <main className="g-auth flex min-h-dvh items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex justify-center">
           <LangSwitch />

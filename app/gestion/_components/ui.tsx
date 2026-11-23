@@ -5,10 +5,10 @@ import { getLang, getT } from "@/lib/gestion/lang";
 
 export function PageHeader({ title, sub, children }: { title: string; sub?: ReactNode; children?: ReactNode }) {
   return (
-    <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-2xl sm:text-3xl">{title}</h1>
-        {sub && <p className="g-muted mt-1 text-sm">{sub}</p>}
+    <header className="g-page-head flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+      <div className="min-w-0">
+        <h1 className="text-2xl sm:text-[1.7rem]">{title}</h1>
+        {sub && <p className="g-muted mt-1 max-w-3xl text-sm">{sub}</p>}
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
     </header>
@@ -17,9 +17,9 @@ export function PageHeader({ title, sub, children }: { title: string; sub?: Reac
 
 export function Section({ title, children, aside }: { title: string; children: ReactNode; aside?: ReactNode }) {
   return (
-    <section className="mt-8">
+    <section className="mt-10">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg">{title}</h2>
+        <h2 className="text-base sm:text-lg">{title}</h2>
         {aside}
       </div>
       {children}
@@ -29,10 +29,10 @@ export function Section({ title, children, aside }: { title: string; children: R
 
 export function Stat({ label, value, note, tone }: { label: string; value: ReactNode; note?: ReactNode; tone?: "bad" | "good" }) {
   return (
-    <div className="g-card">
+    <div className="g-card g-stat" data-tone={tone}>
       <p className="g-label">{label}</p>
       <p
-        className={`text-xl font-medium tabular-nums sm:text-2xl ${tone === "bad" ? "text-[var(--g-bad)]" : tone === "good" ? "text-[var(--g-good)]" : ""}`}
+        className={`text-xl font-semibold tracking-tight tabular-nums sm:text-2xl ${tone === "bad" ? "text-[var(--g-bad)]" : tone === "good" ? "text-[var(--g-good)]" : ""}`}
       >
         {/* Amounts read left to right in Arabic too, so "-72.00" keeps its minus in front. */}
         <bdi dir="ltr">{value}</bdi>
@@ -100,7 +100,7 @@ export async function MonthNav({ month, path, params = {} }: { month: string; pa
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="g-panel g-muted text-sm">{children}</p>;
+  return <p className="g-empty">{children}</p>;
 }
 
 export async function Paid({ paid }: { paid: boolean }) {

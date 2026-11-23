@@ -74,14 +74,14 @@ export function ReviewTable({ controlId, lines, open, corrected }: { controlId: 
             <thead>
               <tr>
                 <th>{t.common.product}</th>
-                <th className="num">{t.control.startCount}</th>
-                <th className="num">{t.control.moved}</th>
-                <th className="num">{t.control.expected}</th>
-                <th className="num">{t.control.counted}</th>
-                <th className="num">{t.control.gap}</th>
-                <th className="num">{t.control.tolerance}</th>
-                <th className="num">{t.control.gapCostShort}</th>
-                <th className="num">{t.control.gapPriceShort}</th>
+                <th className="num">{t.control.startCount}<span className="g-th-hint">{t.control.colHint.start}</span></th>
+                <th className="num">{t.control.moved}<span className="g-th-hint">{t.control.colHint.moved}</span></th>
+                <th className="num">{t.control.expected}<span className="g-th-hint">{t.control.colHint.expected}</span></th>
+                <th className="num">{t.control.counted}<span className="g-th-hint">{t.control.colHint.counted}</span></th>
+                <th className="num">{t.control.gap}<span className="g-th-hint">{t.control.colHint.gap}</span></th>
+                <th className="num">{t.control.tolerance}<span className="g-th-hint">{t.control.colHint.tolerance}</span></th>
+                <th className="num">{t.control.gapCostShort}<span className="g-th-hint">{t.control.colHint.atCost}</span></th>
+                <th className="num">{t.control.gapPriceShort}<span className="g-th-hint">{t.control.colHint.atPrice}</span></th>
                 <th>{t.control.finding}</th>
                 <th />
               </tr>

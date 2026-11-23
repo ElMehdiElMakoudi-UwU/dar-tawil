@@ -361,3 +361,157 @@ select pg_temp.demo_order('Clinique Al Amal', 'Corporate / B2B', 'pickup', curre
 select pg_temp.demo_order('Mehdi Berrada', 'Instagram / WhatsApp', 'delivery', current_date - 2, null, 'cancelled',
   'Coffret rond', 'Client injoignable', 0, null,
   '[{"sku":"BOX-R12","qty":1},{"sku":"CHO-KON","qty":12}]');
+
+-- ── Stock controls (/gestion/stock-control) ─────────────────────────
+-- Everything above was saved "now"; a control compares the POS stock at two
+-- instants, so give each sale and delivery a time on its own day first
+-- (lines of one order share a time). Then: tolerances, four closed controls
+-- with gaps and reasons (Majhoul is off three times running, so it shows as
+-- a recurring gap), one open control half counted with unexplained gaps to
+-- review and close, and one opened this morning with nothing counted yet.
+-- Dates stay free, to try starting a new control.
+update sales set created_at = least(now() - interval '2 minutes',
+  (date + time '09:30' + (abs(hashtext(order_no)) % 540) * interval '1 minute') at time zone 'Africa/Casablanca');
+update purchases set created_at = least(now() - interval '2 minutes', (date + time '08:00') at time zone 'Africa/Casablanca');
+update sale_payments set created_at = least(now() - interval '2 minutes', (date + time '12:00') at time zone 'Africa/Casablanca');
+
+update products set count_tolerance = 0.15, count_tolerance_pct = 1 where category = 'Dates' and sku <> 'DAT-FRC';
+update products set count_tolerance = 0.05, count_tolerance_pct = 1 where sku = 'DAT-FRC';
+update products set count_tolerance = 2 where category = 'Chocolate';
+update products set count_tolerance = 3 where sku = 'OTH-CRT';
+
+-- The POS stock as it stood at an instant: same sum as posStock() in lib/gestion/controls.ts.
+create function pg_temp.pos_at(pid int, ts timestamptz) returns numeric language sql as $f$
+  select round(p.opening_stock
+    + coalesce((select sum(pl.qty) from purchase_lines pl join purchases pu on pu.id = pl.purchase_id
+                where pl.product_id = pid and pu.created_at <= ts), 0)
+    - coalesce((select sum(s.qty * s.factor) from sales s where s.product_id = pid and s.created_at <= ts), 0)
+    + coalesce((select sum(a.qty) from stock_adjustments a where a.product_id = pid and a.created_at <= ts), 0), 3)
+  from products p where p.id = pid
+$f$;
+
+-- One control, the way the app records it. `gaps` plans the gaps worth
+-- looking at ({"SKU": {"gap": -1.2, "reason": "waste", "note": "…"}});
+-- every other counted product is off by a little, within its tolerance.
+-- `counted` limits how many products have been counted (null = all).
+create function pg_temp.demo_control(
+  p_label text, p_day date, p_start time, p_count_day date, p_count time,
+  p_align boolean, p_close boolean, p_correct boolean,
+  p_skus text[], p_counted int, p_gaps jsonb
+) returns void language plpgsql as $f$
+declare
+  admin int := (select id from users where role = 'admin' and active order by id limit 1);
+  staff int := coalesce((select id from users where role = 'staff' and active order by id limit 1), admin);
+  started timestamptz := least(now() - interval '1 hour', (p_day + p_start) at time zone 'Africa/Casablanca');
+  t timestamptz;
+  last_t timestamptz;
+  cid int;
+  p record;
+  pos numeric;
+  shelf numeric;
+  expected numeric;
+  gap numeric;
+  plan jsonb;
+  i int := 0;
+begin
+  insert into stock_controls (label, start_date, started_at, aligned, created_by, created_at)
+  values (p_label, p_day, started, p_align, admin, started) returning id into cid;
+
+  -- Start counts: the shelf is a little off the till already.
+  for p in select * from products where sku = any (p_skus) order by category, name loop
+    pos := pg_temp.pos_at(p.id, started);
+    shelf := greatest(0, case when p.unit = 'kg' then round((greatest(pos, 0) + (random() - 0.6) * 0.4)::numeric, 2)
+                              else round(greatest(pos, 0) + (random() - 0.6) * 3) end);
+    if p.sku = 'BOX-PLT' and p_align then shelf := greatest(pos, 0) + 2; end if;
+    if p_align and shelf <> pos then
+      insert into stock_adjustments (date, product_id, qty, reason, unit_cost, notes, control_id, created_by, created_at)
+      values (p_day, p.id, shelf - pos, 'count', p.unit_cost, p_label || ' — comptage de départ', cid, admin, started);
+    end if;
+    insert into stock_control_lines (control_id, product_id, start_qty, system_start)
+    values (cid, p.id, shelf, case when p_align then shelf else pos end);
+  end loop;
+
+  -- The blind count, a few minutes per product.
+  t := least(now() - interval '20 minutes', (p_count_day + p_count) at time zone 'Africa/Casablanca');
+  last_t := t;
+  for p in select pr.*, l.start_qty, l.system_start from stock_control_lines l join products pr on pr.id = l.product_id
+           where l.control_id = cid order by pr.category, pr.name loop
+    exit when p_counted is not null and i >= p_counted;
+    i := i + 1;
+    last_t := t + (i * 3) * interval '1 minute';
+    pos := pg_temp.pos_at(p.id, last_t);
+    expected := p.start_qty + pos - p.system_start;
+    plan := p_gaps -> p.sku;
+    gap := case
+      when plan is not null then (plan ->> 'gap')::numeric
+      when p.unit = 'kg' then round(((random() - 0.5) * 0.2)::numeric, 2)
+      when p.count_tolerance >= 2 then (array[-1, 0, 0, 0, 1])[1 + floor(random() * 5)::int]
+      else 0 end;
+    update stock_control_lines
+    set counted_qty = greatest(0, expected + gap), system_at_count = pos, counted_at = last_t,
+        counted_by = case when i % 2 = 0 then admin else staff end,
+        unit_cost = p.unit_cost, price = p.price, tol_qty = p.count_tolerance, tol_pct = p.count_tolerance_pct,
+        gap_reason = case when p_close then plan ->> 'reason' end,
+        gap_note = case when p_close then plan ->> 'note' end
+    where control_id = cid and product_id = p.id;
+  end loop;
+
+  if not p_close then return; end if;
+
+  -- Closing: the gaps go in as adjustments so the till matches the shelf again.
+  last_t := last_t + interval '25 minutes';
+  if p_correct then
+    insert into stock_adjustments (date, product_id, qty, reason, unit_cost, notes, control_id, created_by, created_at)
+    select (last_t at time zone 'Africa/Casablanca')::date, l.product_id,
+           l.counted_qty - (l.start_qty + l.system_at_count - l.system_start),
+           case when l.gap_reason = 'waste' and l.counted_qty < l.start_qty + l.system_at_count - l.system_start
+                then 'waste' else 'count' end,
+           l.unit_cost,
+           p_label || ' — ' || case l.gap_reason
+             when 'waste' then 'Perte / casse non saisie' when 'input_error' then 'Erreur de saisie en caisse'
+             when 'missing_delivery' then 'Livraison non saisie' when 'count_error' then 'Erreur de comptage'
+             when 'unexplained' then 'Inexpliqué' else 'Dans la tolérance' end,
+           cid, admin, last_t
+    from stock_control_lines l
+    where l.control_id = cid and l.counted_qty is not null
+      and l.counted_qty <> l.start_qty + l.system_at_count - l.system_start;
+  end if;
+  update stock_controls set status = 'closed', closed_at = last_t, closed_by = admin, corrected = p_correct where id = cid;
+end $f$;
+
+select pg_temp.demo_control('Dattes — inventaire d''octobre', current_date - 35, '08:30', current_date - 28, '18:30',
+  true, true, true,
+  array['DAT-MAJ', 'DAT-BOU', 'DAT-BIT', 'DAT-NEJ', 'DAT-DGN', 'DAT-FRC'], null,
+  '{"DAT-MAJ": {"gap": -2.4, "reason": "unexplained", "note": "Pesée en boutique à vérifier"},
+    "DAT-BIT": {"gap": -1.5, "reason": "waste", "note": "Un cageot abîmé par l''humidité"}}');
+
+select pg_temp.demo_control('Bonbons — semaine 45', current_date - 21, '09:00', current_date - 21, '19:00',
+  false, true, true,
+  (select array_agg(sku) from products where category = 'Chocolate'), null,
+  '{"CHO-FER": {"gap": -12, "reason": "input_error", "note": "Une boîte de 12 Ferrero passée en Amlo"},
+    "CHO-AML": {"gap": 12, "reason": "input_error", "note": "Voir Ferrero"},
+    "CHO-KON": {"gap": -6, "reason": "unexplained", "note": null}}');
+
+select pg_temp.demo_control('Majhoul & coffrets', current_date - 14, '08:45', current_date - 10, '19:15',
+  false, true, false,
+  array['DAT-MAJ', 'DAT-FRC', 'BOX-R12', 'BOX-C24', 'BOX-E2', 'BOX-PLT'], null,
+  '{"DAT-MAJ": {"gap": -1.8, "reason": "unexplained", "note": "Encore un écart sur le Majhoul"},
+    "DAT-FRC": {"gap": -0.6, "reason": "count_error", "note": "Barquette oubliée en vitrine"},
+    "BOX-C24": {"gap": 5, "reason": "missing_delivery", "note": "Livraison Emballages du Nord non saisie"}}');
+
+select pg_temp.demo_control('Dattes — contrôle hebdo', current_date - 7, '09:00', current_date - 7, '19:00',
+  false, true, true,
+  array['DAT-MAJ', 'DAT-BOU', 'DAT-BIT', 'DAT-NEJ', 'DAT-DGN', 'DAT-FRC'], null,
+  '{"DAT-MAJ": {"gap": -2.1, "reason": "unexplained", "note": "Troisième fois : surveiller la balance"},
+    "DAT-BOU": {"gap": -1.2, "reason": "waste", "note": "Dégustation non saisie"}}');
+
+-- Open, 9 of 14 counted: two gaps beyond tolerance still need a reason.
+select pg_temp.demo_control('Bonbons & cartes — semaine 47', current_date - 2, '09:15', current_date - 1, '18:00',
+  false, false, false,
+  (select array_agg(sku) from products where category = 'Chocolate' or sku = 'OTH-CRT'), 9,
+  '{"CHO-KON": {"gap": -8}, "CHO-GIA": {"gap": -5}}');
+
+-- Open this morning, aligned on the start counts, nothing counted yet.
+select pg_temp.demo_control('Coffrets — avant les fêtes', current_date, '08:30', current_date, '08:30',
+  true, false, false,
+  array['BOX-R12', 'BOX-C24', 'BOX-E2', 'BOX-PLT'], 0, '{}');

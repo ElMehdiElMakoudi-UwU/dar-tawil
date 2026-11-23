@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/gestion/auth";
 import { evaluate } from "@/lib/gestion/control";
-import { getControl, getControlLines, getTillGap } from "@/lib/gestion/controls";
+import { getControl, getControlLines, getControlSales, getTillGap } from "@/lib/gestion/controls";
 import { dateLabel, mad } from "@/lib/gestion/format";
 import { fill } from "@/lib/gestion/i18n";
 import { getLang, getT } from "@/lib/gestion/lang";
@@ -11,6 +11,7 @@ import { deleteControl } from "../../../control-actions";
 import { ActionButton } from "../../../_components/forms";
 import { PageHeader, Stat } from "../../../_components/ui";
 import { ReviewTable } from "./review-table";
+import { SalesSection } from "./sales-section";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT()).control.resultsTitle };
@@ -24,7 +25,13 @@ export default async function ControlResultsPage({ params }: PageProps<"/gestion
   const control = await getControl(controlId);
   if (!control) notFound();
   const until = control.closed_at?.slice(0, 10);
-  const [lines, till, lang, t] = await Promise.all([getControlLines(controlId), getTillGap(control.start_date, until), getLang(), getT()]);
+  const [lines, sales, till, lang, t] = await Promise.all([
+    getControlLines(controlId),
+    getControlSales(controlId),
+    getTillGap(control.start_date, until),
+    getLang(),
+    getT(),
+  ]);
 
   const ev = lines.map(evaluate).filter((e) => e != null);
   const flagged = ev.filter((e) => e.flagged).length;
@@ -74,6 +81,8 @@ export default async function ControlResultsPage({ params }: PageProps<"/gestion
       </div>
 
       <ReviewTable controlId={control.id} lines={lines} open={open} corrected={control.corrected} />
+
+      <SalesSection control={control} lines={lines} sales={sales} />
 
       {open && (
         <div className="mt-8 border-t border-[var(--g-line)] pt-4">

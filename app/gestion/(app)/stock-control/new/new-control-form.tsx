@@ -10,15 +10,14 @@ import { useLang, useT } from "../../../_components/i18n";
 
 /**
  * Pick the products to control (all, a category, a few expensive ones) and
- * type what is on the shelf. Blind like the count: the POS stock isn't shown.
+ * type what is on the shelf. A product may be in several open controls.
  */
 export function NewControlForm({ rows, today }: { rows: StartRow[]; today: string }) {
   const t = useT();
   const lang = useLang();
   const [state, run, pending] = useActionState(createControl, undefined);
   const onSubmit = useSubmit(run);
-  const free = rows.filter((r) => r.busy == null);
-  const [picked, setPicked] = useState<Set<number>>(() => new Set(free.map((r) => r.id)));
+  const [picked, setPicked] = useState<Set<number>>(() => new Set(rows.map((r) => r.id)));
   const [counts, setCounts] = useState<Record<number, string>>({});
   const [search, setSearch] = useState("");
 
@@ -86,7 +85,7 @@ export function NewControlForm({ rows, today }: { rows: StartRow[]; today: strin
           onChange={(e) => setSearch(e.target.value)}
           aria-label={t.control.search}
         />
-        <button type="button" className="g-btn g-btn-ghost g-btn-sm" onClick={() => toggle(free.map((r) => r.id), true)}>
+        <button type="button" className="g-btn g-btn-ghost g-btn-sm" onClick={() => toggle(rows.map((r) => r.id), true)}>
           {t.control.pickAll}
         </button>
         <button type="button" className="g-btn g-btn-ghost g-btn-sm" onClick={() => setPicked(new Set())}>
@@ -111,7 +110,7 @@ export function NewControlForm({ rows, today }: { rows: StartRow[]; today: strin
           {groups.map(([category, items]) => {
             const visible = items.filter(shown);
             if (!visible.length) return null;
-            const ids = visible.filter((r) => r.busy == null).map((r) => r.id);
+            const ids = visible.map((r) => r.id);
             const all = ids.length > 0 && ids.every((id) => picked.has(id));
             return (
               <tbody key={category}>
@@ -132,12 +131,11 @@ export function NewControlForm({ rows, today }: { rows: StartRow[]; today: strin
                 {visible.map((r) => {
                   const on = picked.has(r.id);
                   return (
-                    <tr key={r.id} className={r.busy != null ? "opacity-60" : undefined}>
+                    <tr key={r.id}>
                       <td>
                         <input
                           type="checkbox"
                           checked={on}
-                          disabled={r.busy != null}
                           onChange={(e) => toggle([r.id], e.target.checked)}
                           aria-label={r.name}
                         />

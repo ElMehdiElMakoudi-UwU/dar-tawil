@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireUser } from "@/lib/gestion/auth";
+import { requireAdmin } from "@/lib/gestion/auth";
 import { getClosedControls, getOpenControls, getRecurringGaps } from "@/lib/gestion/controls";
 import { dateLabel, mad, qty } from "@/lib/gestion/format";
 import { fill } from "@/lib/gestion/i18n";
@@ -12,33 +12,28 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Open controls to count (staff too), and for the admin the closed ones
- * and the products that keep coming up short.
+ * Admin: open controls to count, the closed ones and the products that
+ * keep coming up short.
  */
 export default async function StockControlPage() {
-  const user = await requireUser();
-  const isAdmin = user.role === "admin";
+  await requireAdmin();
   const [open, closed, recurring, lang, t] = await Promise.all([
     getOpenControls(),
-    isAdmin ? getClosedControls() : Promise.resolve([]),
-    isAdmin ? getRecurringGaps() : Promise.resolve([]),
+    getClosedControls(),
+    getRecurringGaps(),
     getLang(),
     getT(),
   ]);
 
   return (
     <>
-      <PageHeader title={t.nav.stockControl} sub={isAdmin ? t.control.sub : t.control.subStaff}>
-        {isAdmin && (
-          <>
-            <Link href="/gestion/stock-control/tolerances" className="g-btn g-btn-ghost g-btn-sm">
-              {t.control.tolerances}
-            </Link>
-            <Link href="/gestion/stock-control/new" className="g-btn">
-              {t.control.newBtn}
-            </Link>
-          </>
-        )}
+      <PageHeader title={t.nav.stockControl} sub={t.control.sub}>
+        <Link href="/gestion/stock-control/tolerances" className="g-btn g-btn-ghost g-btn-sm">
+          {t.control.tolerances}
+        </Link>
+        <Link href="/gestion/stock-control/new" className="g-btn">
+          {t.control.newBtn}
+        </Link>
       </PageHeader>
 
       <Section title={t.control.openTitle}>
@@ -56,21 +51,19 @@ export default async function StockControlPage() {
                   <Link href={`/gestion/stock-control/${c.id}/count`} className="g-btn g-btn-sm">
                     {t.control.countBtn}
                   </Link>
-                  {isAdmin && (
-                    <Link href={`/gestion/stock-control/${c.id}`} className="g-btn g-btn-ghost g-btn-sm">
-                      {t.control.resultsBtn}
-                    </Link>
-                  )}
+                  <Link href={`/gestion/stock-control/${c.id}`} className="g-btn g-btn-ghost g-btn-sm">
+                    {t.control.resultsBtn}
+                  </Link>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <Empty>{isAdmin ? t.control.noOpen : t.control.noOpenStaff}</Empty>
+          <Empty>{t.control.noOpen}</Empty>
         )}
       </Section>
 
-      {isAdmin && recurring.length > 0 && (
+      {recurring.length > 0 && (
         <Section title={t.control.recurringTitle}>
           <p className="g-muted mb-3 text-sm">{t.control.recurringSub}</p>
           <div className="g-table-wrap">
@@ -104,54 +97,52 @@ export default async function StockControlPage() {
         </Section>
       )}
 
-      {isAdmin && (
-        <Section title={t.control.closedTitle}>
-          {closed.length ? (
-            <div className="g-table-wrap">
-              <table className="g-table">
-                <thead>
-                  <tr>
-                    <th>{t.control.control}</th>
-                    <th>{t.control.period}</th>
-                    <th className="num">{t.control.countedCol}</th>
-                    <th className="num">{t.control.flaggedCol}</th>
-                    <th className="num">{t.control.gapCost}</th>
-                    <th className="num">{t.control.missingPrice}</th>
-                    <th>{t.control.stockCorrected}</th>
+      <Section title={t.control.closedTitle}>
+        {closed.length ? (
+          <div className="g-table-wrap">
+            <table className="g-table">
+              <thead>
+                <tr>
+                  <th>{t.control.control}</th>
+                  <th>{t.control.period}</th>
+                  <th className="num">{t.control.countedCol}</th>
+                  <th className="num">{t.control.flaggedCol}</th>
+                  <th className="num">{t.control.gapCost}</th>
+                  <th className="num">{t.control.missingPrice}</th>
+                  <th>{t.control.stockCorrected}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {closed.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <Link href={`/gestion/stock-control/${c.id}`} className="underline underline-offset-4">
+                        {c.label}
+                      </Link>
+                      <div className="g-muted text-xs">{c.closed_by ?? "—"}</div>
+                    </td>
+                    <td className="whitespace-nowrap">
+                      {dateLabel(c.start_date, lang)} → {c.closed_at ? dateLabel(c.closed_at.slice(0, 10), lang) : "—"}
+                    </td>
+                    <td className="num">
+                      {c.counted} / {c.lines}
+                    </td>
+                    <td className="num">
+                      <span className={`g-badge ${c.flagged ? "g-badge-bad" : "g-badge-good"}`}>{c.flagged}</span>
+                    </td>
+                    <td className={`num tabular-nums ${c.net_cost < 0 ? "g-neg" : ""}`}>{mad(c.net_cost)}</td>
+                    <td className={`num tabular-nums ${c.missing_price < 0 ? "g-neg" : ""}`}>{mad(c.missing_price)}</td>
+                    <td>{c.corrected ? t.control.yes : t.control.no}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {closed.map((c) => (
-                    <tr key={c.id}>
-                      <td>
-                        <Link href={`/gestion/stock-control/${c.id}`} className="underline underline-offset-4">
-                          {c.label}
-                        </Link>
-                        <div className="g-muted text-xs">{c.closed_by ?? "—"}</div>
-                      </td>
-                      <td className="whitespace-nowrap">
-                        {dateLabel(c.start_date, lang)} → {c.closed_at ? dateLabel(c.closed_at.slice(0, 10), lang) : "—"}
-                      </td>
-                      <td className="num">
-                        {c.counted} / {c.lines}
-                      </td>
-                      <td className="num">
-                        <span className={`g-badge ${c.flagged ? "g-badge-bad" : "g-badge-good"}`}>{c.flagged}</span>
-                      </td>
-                      <td className={`num tabular-nums ${c.net_cost < 0 ? "g-neg" : ""}`}>{mad(c.net_cost)}</td>
-                      <td className={`num tabular-nums ${c.missing_price < 0 ? "g-neg" : ""}`}>{mad(c.missing_price)}</td>
-                      <td>{c.corrected ? t.control.yes : t.control.no}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <Empty>{t.control.noClosed}</Empty>
-          )}
-          <p className="g-muted mt-4 text-xs">{t.control.method}</p>
-        </Section>
-      )}
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Empty>{t.control.noClosed}</Empty>
+        )}
+        <p className="g-muted mt-4 text-xs">{t.control.method}</p>
+      </Section>
     </>
   );
 }

@@ -24,7 +24,7 @@ try {
   await sql.begin(async (tx) => {
     if (reset || wipe) {
       await tx.unsafe(`
-        truncate sale_payments, invoices, stock_adjustments, order_lines, orders, sales, purchase_lines, purchases, expenses,
+        truncate stock_controls, sale_payments, invoices, stock_adjustments, order_lines, orders, sales, purchase_lines, purchases, expenses,
                  payroll, employees, cash_movements, cash_counts, customers, products
                  restart identity cascade;
         alter sequence order_seq restart;
@@ -36,8 +36,8 @@ try {
     if (!wipe) {
       await tx.unsafe(await readFile(file, "utf8"));
       const [c] = await tx`select (select count(*) from products) as products, (select count(distinct order_no) from sales) as sales,
-                                  (select count(*) from orders) as orders`;
-      console.log(`demo data loaded: ${c.products} products, ${c.sales} sales, ${c.orders} orders`);
+                                  (select count(*) from orders) as orders, (select count(*) from stock_controls) as controls`;
+      console.log(`demo data loaded: ${c.products} products, ${c.sales} sales, ${c.orders} orders, ${c.controls} stock controls`);
     }
   });
 } catch (e) {

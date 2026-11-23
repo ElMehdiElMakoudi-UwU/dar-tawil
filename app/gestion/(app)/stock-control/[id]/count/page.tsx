@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/lib/gestion/auth";
+import { requireAdmin } from "@/lib/gestion/auth";
 import { getControl, getCountSheet } from "@/lib/gestion/controls";
 import { dateLabel } from "@/lib/gestion/format";
 import { fill } from "@/lib/gestion/i18n";
@@ -13,15 +13,14 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT()).control.countTitle };
 }
 
-/** The blind count: anyone may type, nobody sees what the till expects. */
+/** The count, next to what the till expects: only the owner counts. */
 export default async function CountPage({ params }: PageProps<"/gestion/stock-control/[id]/count">) {
-  const user = await requireUser();
+  await requireAdmin();
   const controlId = Number((await params).id);
   if (!Number.isInteger(controlId)) notFound();
   const control = await getControl(controlId);
   if (!control) notFound();
   const [lang, t] = await Promise.all([getLang(), getT()]);
-  const isAdmin = user.role === "admin";
 
   return (
     <>
@@ -29,11 +28,9 @@ export default async function CountPage({ params }: PageProps<"/gestion/stock-co
         <Link href="/gestion/stock-control" className="g-btn g-btn-ghost g-btn-sm">
           {t.control.back}
         </Link>
-        {isAdmin && (
-          <Link href={`/gestion/stock-control/${control.id}`} className="g-btn g-btn-ghost g-btn-sm">
-            {t.control.resultsBtn}
-          </Link>
-        )}
+        <Link href={`/gestion/stock-control/${control.id}`} className="g-btn g-btn-ghost g-btn-sm">
+          {t.control.resultsBtn}
+        </Link>
       </PageHeader>
       {control.status === "open" ? (
         <CountSheet controlId={control.id} rows={await getCountSheet(control.id)} />

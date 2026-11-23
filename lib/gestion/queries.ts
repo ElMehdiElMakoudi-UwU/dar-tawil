@@ -360,6 +360,16 @@ export async function getOpenOrders() {
   `;
 }
 
+/** Open orders due today or already late — the sidebar's badge. */
+export async function getDueOrderCount() {
+  await requireUser();
+  const [{ n }] = await sql<{ n: number }[]>`
+    select count(*)::int as n from orders
+    where status in ${sql(openStatuses)} and due_date <= ${today()}
+  `;
+  return n;
+}
+
 /** Delivered and cancelled orders that were due in a month, latest first. */
 export async function getClosedOrders(month: string) {
   await requireUser();

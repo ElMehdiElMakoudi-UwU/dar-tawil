@@ -2,18 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireAdmin, requireUser } from "@/lib/gestion/auth";
+import { requireAdmin } from "@/lib/gestion/auth";
 import { evaluate, gapReasons, type GapReason } from "@/lib/gestion/control";
 import { getControlLines, posStock } from "@/lib/gestion/controls";
 import { sql } from "@/lib/gestion/db";
-import { checked, date, handle, id, InputError, text, type FormState } from "@/lib/gestion/form";
+import { checked, date, handle, id, InputError, number, text, type FormState } from "@/lib/gestion/form";
 import { fill, type Dict } from "@/lib/gestion/i18n";
 import { today } from "@/lib/gestion/format";
 import { getT } from "@/lib/gestion/lang";
 
 /*
- * Stock control. Staff may type counts (blind); starting, reviewing,
- * closing and tolerances are admin only. Every action checks its own role:
+ * Stock control is the owner's job: every action is admin only, and checks
+ * it itself:
  * server actions are public endpoints whatever page renders the form.
  */
 
@@ -72,13 +72,6 @@ export async function createControl(_: FormState, fd: FormData): Promise<FormSta
     newId = await sql.begin(async (tx) => {
       const stock = await posStock(tx, ids);
       if (stock.size !== ids.length) throw new InputError("productGone");
-      const busy = await tx<{ name: string; control_id: number }[]>`
-        select p.name, l.control_id from stock_control_lines l
-        join stock_controls c on c.id = l.control_id join products p on p.id = l.product_id
-        where c.status = 'open' and l.product_id in ${tx(ids)} limit 1
-      `;
-      if (busy.length) throw new InputError("controlBusy", { name: busy[0].name, id: busy[0].control_id });
-
       const [c] = await tx<{ id: number }[]>`
         insert into stock_controls (label, start_date, aligned, created_by)
         values (${label}, ${startDate}, ${align}, ${user.id}) returning id
@@ -105,9 +98,15 @@ export async function createControl(_: FormState, fd: FormData): Promise<FormSta
   redirect(`/gestion/stock-control/${newId}`);
 }
 
-/* ── blind count ─────────────────────────────────────────────────── */
+/* ── count ───────────────────────────────────────────────────────── */
 
-export type CountResult = { ok: true; counted_at: string | null } | { ok: false; error: string };
+/** The saved count and what it was measured against, so the sheet shows the gap. */
+export type CountResult =
+  | {
+      ok: true; counted_at: string | null; system_now: number; system_at_count: number | null;
+      unit_cost: number; price: number; tol_qty: number; tol_pct: number;
+    }
+  | { ok: false; error: string };
 
 /**
  * Saves one product's count the moment it is typed, with the POS stock at
@@ -115,12 +114,12 @@ export type CountResult = { ok: true; counted_at: string | null } | { ok: false;
  * read as a gap. An empty box clears the count.
  */
 export async function saveCount(controlId: number, product: number, value: string): Promise<CountResult> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const t = await getT();
   try {
     if (!Number.isInteger(controlId) || !Number.isInteger(product)) throw new InputError("missing");
     const qty = quantity(value, t);
-    const at = await sql.begin(async (tx) => {
+    return await sql.begin(async (tx): Promise<CountResult> => {
       const [line] = await tx<{ status: string }[]>`
         select c.status from stock_control_lines l join stock_controls c on c.id = l.control_id
         where l.control_id = ${controlId} and l.product_id = ${product}
@@ -128,6 +127,9 @@ export async function saveCount(controlId: number, product: number, value: strin
       `;
       if (!line) throw new InputError("missing");
       if (line.status !== "open") throw new InputError("controlClosed");
+      const p = (await posStock(tx, [product])).get(product);
+      if (!p) throw new InputError("productGone");
+      const base = { ok: true as const, system_now: p.stock, unit_cost: p.unit_cost, price: p.price, tol_qty: p.tol_qty, tol_pct: p.tol_pct };
       if (qty == null) {
         await tx`
           update stock_control_lines
@@ -135,10 +137,8 @@ export async function saveCount(controlId: number, product: number, value: strin
               unit_cost = null, price = null, tol_qty = null, tol_pct = null
           where control_id = ${controlId} and product_id = ${product}
         `;
-        return null;
+        return { ...base, counted_at: null, system_at_count: null };
       }
-      const p = (await posStock(tx, [product])).get(product);
-      if (!p) throw new InputError("productGone");
       const [row] = await tx<{ at: string }[]>`
         update stock_control_lines
         set counted_qty = ${qty}, system_at_count = ${p.stock}, counted_at = now(), counted_by = ${user.id},
@@ -146,9 +146,8 @@ export async function saveCount(controlId: number, product: number, value: strin
         where control_id = ${controlId} and product_id = ${product}
         returning to_char(counted_at at time zone 'Africa/Casablanca', 'HH24:MI') as at
       `;
-      return row.at;
+      return { ...base, counted_at: row.at, system_at_count: p.stock };
     });
-    return { ok: true, counted_at: at };
   } catch (e) {
     if (e instanceof InputError) return { ok: false, error: fill(t.err[e.key], e.vars) };
     throw e;
@@ -239,6 +238,25 @@ export async function deleteControl(_: FormState, fd: FormData): Promise<FormSta
   });
   if (state?.error) return state;
   redirect("/gestion/stock-control");
+}
+
+/* ── money collected ─────────────────────────────────────────────── */
+
+/** The money the owner collected over the control, typed by hand; empty clears it. */
+export async function saveCollected(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin();
+  return handle(async (t) => {
+    const controlId = id(fd);
+    const amount = number(fd, "cash_collected", { min: 0, label: t.control.collected });
+    const note = text(fd, "cash_note")?.slice(0, 500) ?? null;
+    const [row] = await sql`
+      update stock_controls set cash_collected = ${amount == null ? null : Math.round(amount * 100) / 100}, cash_note = ${note}
+      where id = ${controlId} returning id
+    `;
+    if (!row) throw new InputError("missing");
+    refresh();
+    return t.ok.saved;
+  });
 }
 
 /* ── tolerances ──────────────────────────────────────────────────── */

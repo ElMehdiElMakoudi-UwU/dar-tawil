@@ -8,11 +8,19 @@ import { today } from "./format";
 
 /*
  * Stock control: see db/migrations/013_stock_controls.sql for the method.
- * Staff may count (blind: they never see what is expected); everything that
- * shows the POS stock, gaps or values is admin only.
+ * Only the owner (admin) runs controls, so the count sheet shows what the
+ * till expects next to each count.
  */
 
 /* Times are read in Morocco and sent as "YYYY-MM-DD HH:MI" text, so pages never deal with time zones. */
+
+/** The POS stock of product `p`: opening + deliveries − sales + adjustments. */
+const stockOf = sql`
+  p.opening_stock
+    + coalesce((select sum(qty) from purchase_lines where product_id = p.id), 0)
+    - coalesce((select sum(qty * factor) from sales where product_id = p.id), 0)
+    + coalesce((select sum(qty) from stock_adjustments where product_id = p.id), 0)
+`;
 
 /**
  * The POS stock of some products right now, locking them so a sale saved at
@@ -21,10 +29,7 @@ import { today } from "./format";
 export async function posStock(tx: TransactionSql<any>, ids: number[]) {
   const rows = await tx<{ id: number; unit_cost: number; price: number; tol_qty: number; tol_pct: number; stock: number }[]>`
     select p.id, p.unit_cost, p.price, p.count_tolerance as tol_qty, p.count_tolerance_pct as tol_pct,
-           p.opening_stock
-             + coalesce((select sum(qty) from purchase_lines where product_id = p.id), 0)
-             - coalesce((select sum(qty * factor) from sales where product_id = p.id), 0)
-             + coalesce((select sum(qty) from stock_adjustments where product_id = p.id), 0) as stock
+           ${stockOf} as stock
     from products p where p.id in ${tx(ids.length ? ids : [0])}
     for update
   `;
@@ -35,11 +40,13 @@ export type Control = {
   id: number; label: string; start_date: string; started_at: string; aligned: boolean;
   status: "open" | "closed"; closed_at: string | null; closed_by: string | null; corrected: boolean;
   created_by: string | null; lines: number; counted: number;
+  /** Money the owner collected over the control, typed by hand. */
+  cash_collected: number | null; cash_note: string | null;
 };
 
 const controlCols = sql`
   c.id, c.label, c.start_date, to_char(c.started_at at time zone 'Africa/Casablanca', 'YYYY-MM-DD HH24:MI') as started_at, c.aligned, c.status,
-  to_char(c.closed_at at time zone 'Africa/Casablanca', 'YYYY-MM-DD HH24:MI') as closed_at, cu.name as closed_by, c.corrected, u.name as created_by,
+  to_char(c.closed_at at time zone 'Africa/Casablanca', 'YYYY-MM-DD HH24:MI') as closed_at, cu.name as closed_by, c.corrected, u.name as created_by, c.cash_collected, c.cash_note,
   (select count(*)::int from stock_control_lines l where l.control_id = c.id) as lines,
   (select count(*)::int from stock_control_lines l where l.control_id = c.id and l.counted_qty is not null) as counted
 `;
@@ -68,7 +75,7 @@ const lineCols = sql`
   coalesce(l.tol_qty, p.count_tolerance) as tol_qty, coalesce(l.tol_pct, p.count_tolerance_pct) as tol_pct, l.gap_reason, l.gap_note,
   coalesce((
     select sum(a.qty) from stock_adjustments a
-    where a.product_id = l.product_id and a.reason = 'count' and a.control_id is null
+    where a.product_id = l.product_id and a.reason = 'count' and a.control_id is distinct from l.control_id
       and a.created_at > c.started_at and a.created_at <= coalesce(l.counted_at, now())
   ), 0) as manual_counts
 `;
@@ -88,17 +95,16 @@ export async function getControlLines(id: number) {
   `;
 }
 
-export type CountRow = {
-  product_id: number; sku: string; name: string; category: string | null; unit: string;
-  counted_qty: number | null; counted_at: string | null;
+export type CountRow = ControlLine & {
+  /** The POS stock right now: what is expected for a product not counted yet. */
+  system_now: number;
 };
 
-/** The blind count sheet: names and what has been typed, never the POS stock. */
+/** Admin: the count sheet, with what the till expects for each product. */
 export async function getCountSheet(id: number) {
-  await requireUser();
+  await requireAdmin();
   return sql<CountRow[]>`
-    select l.product_id, p.sku, p.name, p.category, p.unit, l.counted_qty, to_char(l.counted_at at time zone 'Africa/Casablanca', 'YYYY-MM-DD HH24:MI') as counted_at
-    from stock_control_lines l join products p on p.id = l.product_id
+    select ${lineCols}, round((${stockOf})::numeric, 3) as system_now from ${lineFrom}
     where l.control_id = ${id}
     order by p.category nulls last, p.name
   `;
@@ -108,11 +114,11 @@ export type StartRow = {
   id: number; sku: string; name: string; category: string | null; unit: string;
   /** The product's last count in a closed control: a starting point. */
   last_count: number | null; last_date: string | null;
-  /** An open control the product is already in. */
+  /** An open control the product is also in (it may be in several). */
   busy: number | null;
 };
 
-/** Admin: active products for a new control. Blind too: no POS stock. */
+/** Admin: active products for a new control. */
 export async function getStartSheet() {
   await requireAdmin();
   return sql<StartRow[]>`
@@ -254,6 +260,41 @@ export async function getTillGap(from: string, to = today()) {
     counted: counted.length,
     days: days.length,
   };
+}
+
+/** A line's window: from the start to its count (or the close, or now). */
+const until = sql`coalesce(l.counted_at, c.closed_at, now())`;
+
+export type ControlSales = {
+  product_id: number;
+  /** Sold at the POS in the stock unit, returns netted out. */
+  pos_qty: number;
+  pos_amount: number;
+  /** Delivered over the window, in the stock unit. */
+  delivered: number;
+};
+
+/** Admin: what the POS sold and what was delivered, per product, over the control. */
+export async function getControlSales(controlId: number) {
+  await requireAdmin();
+  const rows = await sql<ControlSales[]>`
+    select l.product_id,
+           round(coalesce((
+             select sum(s.qty * s.factor) from sales s
+             where s.product_id = l.product_id and s.created_at > c.started_at and s.created_at <= ${until}
+           ), 0)::numeric, 3) as pos_qty,
+           round(coalesce((
+             select sum(s.qty * s.unit_price * (1 - s.discount_pct / 100)) from sales s
+             where s.product_id = l.product_id and s.created_at > c.started_at and s.created_at <= ${until}
+           ), 0)::numeric, 2) as pos_amount,
+           round(coalesce((
+             select sum(pl.qty) from purchase_lines pl join purchases pu on pu.id = pl.purchase_id
+             where pl.product_id = l.product_id and pu.created_at > c.started_at and pu.created_at <= ${until}
+           ), 0)::numeric, 3) as delivered
+    from stock_control_lines l join stock_controls c on c.id = l.control_id
+    where l.control_id = ${controlId}
+  `;
+  return new Map(rows.map((r) => [r.product_id, r]));
 }
 
 export type ToleranceRow = { id: number; sku: string; name: string; category: string | null; unit: string; qty: number; pct: number };

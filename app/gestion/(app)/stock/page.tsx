@@ -76,9 +76,13 @@ export default async function StockPage({ searchParams }: PageProps<"/gestion/st
                           {r.notes ?? r.from_return}
                         </Link>
                       ) : r.from_control ? (
-                        <Link href={`/gestion/stock-control/${r.from_control}${isAdmin ? "" : "/count"}`} className="underline underline-offset-4">
-                          {r.notes ?? t.nav.stockControl}
-                        </Link>
+                        isAdmin ? (
+                          <Link href={`/gestion/stock-control/${r.from_control}`} className="underline underline-offset-4">
+                            {r.notes ?? t.nav.stockControl}
+                          </Link>
+                        ) : (
+                          (r.notes ?? t.nav.stockControl)
+                        )
                       ) : (
                         (r.notes ?? "—")
                       )}
