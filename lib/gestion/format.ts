@@ -61,6 +61,11 @@ export function dateLabel(date: string, lang: Lang) {
   return utc(date).toLocaleDateString(dateLocale[lang], { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
+/** "23 nov. 10:40" — a "YYYY-MM-DD HH:MI" moment. */
+export function stampLabel(stamp: string, lang: Lang) {
+  return `${dayLabel(stamp.slice(0, 10), lang)} ${stamp.slice(11)}`;
+}
+
 /** "ven. 3 oct." — for due dates in the coming days. */
 export function weekdayLabel(date: string, lang: Lang) {
   return utc(date).toLocaleDateString(dateLocale[lang], { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });

@@ -177,6 +177,10 @@ textarea.g-input {
 .g-neg {
   color: var(--g-bad);
 }
+/* A stock-control line off beyond its tolerance. */
+.g-row-flag > td {
+  background: color-mix(in srgb, var(--g-bad) 9%, transparent);
+}
 .g-muted {
   color: var(--g-soft);
 }

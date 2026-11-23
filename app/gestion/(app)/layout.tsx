@@ -29,6 +29,7 @@ export default async function AppLayout({ children }: LayoutProps<"/gestion">) {
       items: [
         { href: "/gestion/products", label: t.nav.products, icon: "package" },
         { href: "/gestion/stock", label: t.nav.stock, icon: "clipboard" },
+        { href: "/gestion/stock-control", label: t.nav.stockControl, icon: "listChecks" },
         { href: "/gestion/customers", label: t.nav.customers, icon: "users" },
       ],
     },

@@ -705,12 +705,22 @@ export async function createAdjustment(_: FormState, fd: FormData): Promise<Form
   });
 }
 
-/** A write-off from a return goes with the return, not on its own. */
+/**
+ * A write-off from a return goes with the return, not on its own; one made
+ * by a stock control goes with the control.
+ */
 export async function deleteAdjustment(_: FormState, fd: FormData): Promise<FormState> {
   await requireAdmin();
   return handle(async (t) => {
-    const del = await sql`delete from stock_adjustments where id = ${id(fd)} and sale_id is null`;
-    if (del.count !== 1) throw new InputError("adjustFromReturn");
+    const adjustmentId = id(fd);
+    const [a] = await sql<{ sale_id: number | null; control_id: number | null }[]>`
+      select sale_id, control_id from stock_adjustments where id = ${adjustmentId}
+    `;
+    if (!a) throw new InputError("missing");
+    if (a.sale_id) throw new InputError("adjustFromReturn");
+    if (a.control_id) throw new InputError("adjustFromControl");
+    const del = await sql`delete from stock_adjustments where id = ${adjustmentId} and sale_id is null and control_id is null`;
+    if (del.count !== 1) throw new InputError("missing");
     refresh();
     return t.ok.deleted;
   });

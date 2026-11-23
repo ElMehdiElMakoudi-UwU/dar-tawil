@@ -105,6 +105,8 @@ export async function getProductAdmin(id: number) {
 export type Adjustment = {
   id: number; date: string; sku: string; product: string; unit: string; qty: number; reason: AdjustReason;
   notes: string | null; created_by: string | null; from_return: string | null;
+  /** The stock control that made it, which owns it. */
+  from_control: number | null;
   /** Admin only: what the stock that moved was worth at cost (negative = lost). */
   value?: number;
 };
@@ -114,7 +116,7 @@ export async function getAdjustments(month: string) {
   const { from, to } = monthRange(month);
   return sql<Adjustment[]>`
     select a.id, a.date, p.sku, p.name as product, p.unit, a.qty, a.reason, a.notes, u.name as created_by,
-           s.order_no as from_return
+           s.order_no as from_return, a.control_id as from_control
            ${user.role === "admin" ? sql`, a.qty * a.unit_cost as value` : sql``}
     from stock_adjustments a
     join products p on p.id = a.product_id
@@ -473,21 +475,16 @@ export async function getPayrollMonth(period: string) {
 
 /* ── admin: cash & bank ───────────────────────────────────────────── */
 
-export async function getCash(month: string) {
+/**
+ * The till, day by day between two dates: cash that came in, and what was
+ * counted at closing where a count was saved.
+ */
+export async function cashDays(from: string, to: string) {
   await requireAdmin();
-  const { from, to } = monthRange(month);
-  const movements = await sql<{
-    id: number; date: string; account: "cash" | "bank"; direction: "in" | "out";
-    category: string; amount: number; notes: string | null;
-  }[]>`
-    select id, date, account, direction, category, amount, notes
-    from cash_movements where date between ${from} and ${to}
-    order by date desc, id desc
-  `;
   // Cash that came in per day: sales paid in one go (refunds net out as
   // negative lines), plus deposits and payments on account on the day they
   // were received. A sale paid in several goes counts only through its payments.
-  const days = await sql<{ date: string; cash_sales: number; counted: number | null; count_id: number | null; notes: string | null }[]>`
+  return sql<{ date: string; cash_sales: number; counted: number | null; count_id: number | null; notes: string | null }[]>`
     with c as (
       select s.date, s.qty * s.unit_price * (1 - s.discount_pct / 100) as amount
       from sales s
@@ -502,6 +499,20 @@ export async function getCash(month: string) {
     from d left join cash_counts cc on cc.date = d.date
     order by d.date desc
   `;
+}
+
+export async function getCash(month: string) {
+  await requireAdmin();
+  const { from, to } = monthRange(month);
+  const movements = await sql<{
+    id: number; date: string; account: "cash" | "bank"; direction: "in" | "out";
+    category: string; amount: number; notes: string | null;
+  }[]>`
+    select id, date, account, direction, category, amount, notes
+    from cash_movements where date between ${from} and ${to}
+    order by date desc, id desc
+  `;
+  const days = await cashDays(from, to);
   return { movements, days };
 }
 

@@ -140,7 +140,7 @@ export async function yearWorkbook(year: number): Promise<Sheet[]> {
 export const backupTables = [
   "users", "lists", "settings", "products", "product_variants", "customers", "employees",
   "orders", "order_lines", "sales", "sale_payments", "invoices",
-  "purchases", "purchase_lines", "expenses", "payroll", "cash_movements", "cash_counts", "stock_adjustments",
+  "purchases", "purchase_lines", "expenses", "payroll", "cash_movements", "cash_counts", "stock_controls", "stock_adjustments", "stock_control_lines",
   "catalog_packs", "catalog_variants", "catalog_images",
 ] as const;
 export const backupSequences = ["order_seq", "prep_order_seq", "return_seq"] as const;

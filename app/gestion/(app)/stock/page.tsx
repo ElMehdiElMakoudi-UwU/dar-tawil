@@ -75,13 +75,17 @@ export default async function StockPage({ searchParams }: PageProps<"/gestion/st
                         <Link href={`/gestion/sales/${r.from_return}`} className="underline underline-offset-4">
                           {r.notes ?? r.from_return}
                         </Link>
+                      ) : r.from_control ? (
+                        <Link href={`/gestion/stock-control/${r.from_control}${isAdmin ? "" : "/count"}`} className="underline underline-offset-4">
+                          {r.notes ?? t.nav.stockControl}
+                        </Link>
                       ) : (
                         (r.notes ?? "—")
                       )}
                     </td>
                     {isAdmin && (
                       <td className="text-end">
-                        {!r.from_return && (
+                        {!r.from_return && !r.from_control && (
                           <ActionButton action={deleteAdjustment} fields={{ id: r.id }} confirm={t.adjust.confirmDelete} className="g-link-danger">
                             {t.common.delete}
                           </ActionButton>
