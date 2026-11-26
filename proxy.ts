@@ -12,7 +12,9 @@ export function proxy(request: NextRequest) {
   // French is always the default; other languages are reached via the switcher.
   const url = request.nextUrl.clone();
   url.pathname = `/${defaultLocale}${pathname === "/" ? "" : pathname}`;
-  return NextResponse.redirect(url);
+  // Permanent (308): the locale prefix is fixed, so search engines should
+  // replace "/" with "/fr" in their index instead of keeping both.
+  return NextResponse.redirect(url, 308);
 }
 
 export const config = {
