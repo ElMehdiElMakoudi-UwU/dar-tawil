@@ -5,7 +5,7 @@ import { StarRule } from "@/components/ornament";
 import { PackCard } from "@/components/pack-card";
 import { CtaPrimary, Lede, PageHeader, Section, Title } from "@/components/ui";
 import { getCatalogSections } from "@/lib/catalog";
-import type { Locale } from "@/lib/locales";
+import { pageAlternates, type Locale } from "@/lib/locales";
 import { whatsappLink } from "@/lib/site";
 import { getDictionary } from "../dictionaries";
 
@@ -14,7 +14,11 @@ export async function generateMetadata({
 }: PageProps<"/[lang]/collections">): Promise<Metadata> {
   const { lang } = await params;
   const t = await getDictionary(lang);
-  return { title: t.collectionsPage.eyebrow, description: t.collectionsPage.lede };
+  return {
+    title: t.collectionsPage.eyebrow,
+    description: t.collectionsPage.lede,
+    alternates: pageAlternates(lang, "/collections"),
+  };
 }
 
 export default async function CollectionsPage({

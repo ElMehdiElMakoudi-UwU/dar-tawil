@@ -3,13 +3,18 @@ import { ContactForm } from "@/components/contact-form";
 import { getDictionary } from "../dictionaries";
 import { PageHeader, Section } from "@/components/ui";
 import { site, whatsappLink } from "@/lib/site";
+import { pageAlternates } from "@/lib/locales";
 
 export async function generateMetadata({
   params,
 }: PageProps<"/[lang]/contact">): Promise<Metadata> {
   const { lang } = await params;
   const t = await getDictionary(lang);
-  return { title: t.contactPage.eyebrow, description: t.contactPage.lede };
+  return {
+    title: t.contactPage.eyebrow,
+    description: t.contactPage.lede,
+    alternates: pageAlternates(lang, "/contact"),
+  };
 }
 
 export default async function ContactPage({ params }: PageProps<"/[lang]/contact">) {

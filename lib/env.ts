@@ -1,7 +1,8 @@
 /**
- * Deploy-time settings. Both are read during `next build` (the pages are
- * statically generated), so in Coolify they must be marked as **build**
- * variables, not runtime-only ones.
+ * Deploy-time settings. Both are read during `next build` (most pages are
+ * statically generated) and again at runtime by the pages that render per
+ * request (home, collections). The Dockerfile carries the build values into
+ * the running container so the two always agree.
  */
 
 /** Public origin, no trailing slash. Used for canonicals, OG and the sitemap. */

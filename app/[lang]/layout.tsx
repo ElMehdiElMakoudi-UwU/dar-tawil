@@ -6,7 +6,7 @@ import { Intro } from "@/components/intro";
 import { ArchClipDefs } from "@/components/ornament";
 import { Motion } from "@/components/motion";
 import { RevealOnScroll } from "@/components/reveal";
-import { locales, localeDir, type Locale } from "@/lib/locales";
+import { locales, localeDir, pageAlternates, type Locale } from "@/lib/locales";
 import { site } from "@/lib/site";
 import { indexable } from "@/lib/env";
 import { palette } from "@/lib/theme";
@@ -66,10 +66,7 @@ export async function generateMetadata({
     metadataBase: new URL(site.url),
     title: { default: t.meta.title, template: `%s — ${site.name}` },
     description: t.meta.description,
-    alternates: {
-      canonical: `/${lang}`,
-      languages: Object.fromEntries(locales.map((l) => [l, `/${l}`])),
-    },
+    alternates: pageAlternates(lang),
     icons: { icon: "/brand/icon.png", apple: "/brand/icon.png" },
     robots: indexable ? undefined : { index: false, follow: false },
     openGraph: {

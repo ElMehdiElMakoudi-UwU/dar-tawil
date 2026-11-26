@@ -32,6 +32,13 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# The home and collections pages render per request (they read the catalog),
+# so they read these at runtime too. Carry the build values over, or those
+# pages ship "noindex" while the static ones and robots.txt say "index".
+ARG NEXT_PUBLIC_SITE_URL=https://dartawil.ma
+ARG SITE_INDEXABLE=false
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+ENV SITE_INDEXABLE=$SITE_INDEXABLE
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 

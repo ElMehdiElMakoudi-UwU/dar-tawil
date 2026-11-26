@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { StarRule } from "@/components/ornament";
 import { CtaGhost, CtaPrimary, PageHeader, Section, Title } from "@/components/ui";
-import type { Locale } from "@/lib/locales";
+import { pageAlternates, type Locale } from "@/lib/locales";
 import { reviews } from "@/lib/reviews";
 import { whatsappLink } from "@/lib/site";
 import { getDictionary } from "../dictionaries";
@@ -12,7 +12,11 @@ export async function generateMetadata({
 }: PageProps<"/[lang]/avis">): Promise<Metadata> {
   const { lang } = await params;
   const t = await getDictionary(lang);
-  return { title: t.avisPage.eyebrow, description: t.avisPage.lede };
+  return {
+    title: t.avisPage.eyebrow,
+    description: t.avisPage.lede,
+    alternates: pageAlternates(lang, "/avis"),
+  };
 }
 
 /* A pinned-board tilt, alternating so neighbours never lean the same way. */

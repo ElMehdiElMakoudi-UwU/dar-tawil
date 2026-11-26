@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Photo } from "@/components/photo";
 import { CtaPrimary, PageHeader, Section } from "@/components/ui";
-import type { Locale } from "@/lib/locales";
+import { pageAlternates, type Locale } from "@/lib/locales";
 import { photos } from "@/lib/photos";
 import { getDictionary } from "../dictionaries";
 
@@ -10,7 +10,11 @@ export async function generateMetadata({
 }: PageProps<"/[lang]/maison">): Promise<Metadata> {
   const { lang } = await params;
   const t = await getDictionary(lang);
-  return { title: t.maisonPage.eyebrow, description: t.maisonPage.lede };
+  return {
+    title: t.maisonPage.eyebrow,
+    description: t.maisonPage.lede,
+    alternates: pageAlternates(lang, "/maison"),
+  };
 }
 
 export default async function MaisonPage({ params }: PageProps<"/[lang]/maison">) {
